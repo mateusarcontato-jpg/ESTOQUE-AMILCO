@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "Department": {
+      "title": "Department",
+      "description": "Store or unit such as ACARAÚ, PREÁ, CD, SERRARIA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "IT consumable, hardware, cable, network device",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "quantity": { "type": "number" },
+        "minQuantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "locationDepartmentId": { "type": "string" },
+        "patrimonyCode": { "type": "string" },
+        "notes": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "quantity", "minQuantity", "unit"]
+    },
+    "PrinterItem": {
+      "title": "PrinterItem",
+      "description": "Printer device with color type and model",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "colorType": { "type": "string" },
+        "quantityAvailable": { "type": "number" },
+        "departmentId": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "patrimonyNumber": { "type": "string" },
+        "status": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "brand", "model", "colorType", "quantityAvailable", "departmentId", "status"]
+    },
+    "Requester": {
+      "title": "Requester",
+      "description": "Employee who requests items and their store sector/part",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "storeDepartmentId": { "type": "string" },
+        "storeDepartmentName": { "type": "string" },
+        "storeSection": { "type": "string" },
+        "role": { "type": "string" },
+        "contact": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "storeDepartmentId", "storeDepartmentName", "storeSection"]
+    },
+    "WithdrawalRecord": {
+      "title": "WithdrawalRecord",
+      "description": "Stock deduction log record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "itemType": { "type": "string" },
+        "quantity": { "type": "number" },
+        "destinationDepartmentId": { "type": "string" },
+        "destinationDepartmentName": { "type": "string" },
+        "requesterId": { "type": "string" },
+        "requesterName": { "type": "string" },
+        "requesterSection": { "type": "string" },
+        "technicianName": { "type": "string" },
+        "ticketOrReason": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "itemId", "itemName", "itemType", "quantity", "destinationDepartmentId", "destinationDepartmentName", "requesterName", "date"]
+    }
+  },
+  "firestore": {
+    "/departments/{departmentId}": {
+      "schema": "Department",
+      "description": "Registered stores and branches"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Registered items in inventory"
+    },
+    "/printers/{printerId}": {
+      "schema": "PrinterItem",
+      "description": "Registered printers"
+    },
+    "/requesters/{requesterId}": {
+      "schema": "Requester",
+      "description": "Employees and their respective store sections"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "WithdrawalRecord",
+      "description": "Audit trail of all item withdrawals"
+    }
+  }
+}

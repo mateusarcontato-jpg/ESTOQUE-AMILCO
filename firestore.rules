@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function for ID verification
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    match /departments/{departmentId} {
+      allow read: if true;
+      allow write: if isValidId(departmentId);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isValidId(productId);
+    }
+
+    match /printers/{printerId} {
+      allow read: if true;
+      allow write: if isValidId(printerId);
+    }
+
+    match /requesters/{requesterId} {
+      allow read: if true;
+      allow write: if isValidId(requesterId);
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow read: if true;
+      allow write: if isValidId(withdrawalId);
+    }
+
+    // Health / connection test doc
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

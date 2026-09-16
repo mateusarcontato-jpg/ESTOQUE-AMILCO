@@ -28,8 +28,8 @@ interface HeaderProps {
   onOpenPrinterModal: () => void;
   onOpenWithdrawalModal: () => void;
   onOpenDepartmentModal: () => void;
-  onOpenRequesterModal: () => void;
-  onOpenPurchaseModal: () => void;
+  onOpenRequesterModal?: () => void;
+  onOpenPurchaseModal?: () => void;
   onOpenReportModal: () => void;
   onLogout: () => void;
   onManualSync?: () => void;

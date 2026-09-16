@@ -58,7 +58,7 @@ export interface Requester {
   roleOrPosition?: string; // Cargo (ex: Gerente, Caixa, Vendedor, Operador)
   contact?: string; // Ramal, celular ou WhatsApp
   notes?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface WithdrawalRecord {

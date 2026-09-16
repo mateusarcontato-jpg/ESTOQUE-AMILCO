@@ -79,7 +79,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   let previewProducts = products;
   if (departmentFilter !== 'all') {
-    previewProducts = previewProducts.filter(p => p.departmentId === departmentFilter);
+    previewProducts = previewProducts.filter(p => p.locationDepartmentId === departmentFilter);
   }
 
   let previewPrinters = printers;

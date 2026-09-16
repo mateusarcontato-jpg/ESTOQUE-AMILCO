@@ -88,14 +88,16 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         setCustomRequesterName('');
         setCustomRequesterSection('');
       } else {
-        const foundByName = requesters.find(r => r.name.toLowerCase() === editingWithdrawal.requesterName.toLowerCase());
+        const foundByName = (requesters || []).find(r => 
+          (r?.name || '').toLowerCase() === (editingWithdrawal.requesterName || '').toLowerCase()
+        );
         if (foundByName) {
           setSelectedRequesterId(foundByName.id);
           setCustomRequesterName('');
           setCustomRequesterSection('');
         } else {
           setSelectedRequesterId('custom');
-          setCustomRequesterName(editingWithdrawal.requesterName);
+          setCustomRequesterName(editingWithdrawal.requesterName || '');
           setCustomRequesterSection(editingWithdrawal.requesterSection || '');
         }
       }
@@ -145,8 +147,6 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     setError(null);
   }, [editingWithdrawal, selectedProduct, prefillRequester, products, departments, requesters, currentTechnicianName, isOpen]);
 
-  if (!isOpen) return null;
-
   // Selected item reference
   const currentProduct = itemType === 'product' 
     ? products.find(p => p.id === selectedItemId) 
@@ -158,22 +158,22 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
   // Filtered products list by search query
   const filteredProducts = useMemo(() => {
-    if (!itemSearch.trim()) return products;
+    if (!itemSearch || !itemSearch.trim()) return products || [];
     const q = itemSearch.toLowerCase().trim();
-    return products.filter(p => 
-      p.name.toLowerCase().includes(q) || 
-      p.category.toLowerCase().includes(q)
+    return (products || []).filter(p => 
+      (p?.name || '').toLowerCase().includes(q) || 
+      (p?.category || '').toLowerCase().includes(q)
     );
   }, [products, itemSearch]);
 
   // When user types in product search, auto-select first match
   const handleItemSearchChange = (text: string) => {
     setItemSearch(text);
-    const q = text.toLowerCase().trim();
+    const q = (text || '').toLowerCase().trim();
     if (q && itemType === 'product') {
-      const matched = products.find(p => 
-        p.name.toLowerCase().includes(q) || 
-        p.category.toLowerCase().includes(q)
+      const matched = (products || []).find(p => 
+        (p?.name || '').toLowerCase().includes(q) || 
+        (p?.category || '').toLowerCase().includes(q)
       );
       if (matched) {
         setSelectedItemId(matched.id);
@@ -183,7 +183,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
   // Smart ink / toner detection
   const selectedProdName = (currentProduct?.name || '').toLowerCase();
-  const searchLower = itemSearch.toLowerCase().trim();
+  const searchLower = (itemSearch || '').toLowerCase().trim();
 
   const isToner = selectedProdName.includes('toner') || selectedProdName.includes('tonner') ||
                   searchLower.includes('toner') || searchLower.includes('tonner');
@@ -195,13 +195,19 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
   const isPrinterSupply = itemType === 'product' && (isToner || isInk || currentProduct?.category === 'Impressoras e Suprimentos');
 
-  // Categorize registered printers
+  // Categorize registered printers safely
   const monoPrinters = useMemo(() => {
-    return printers.filter(p => p.colorType.toLowerCase().includes('mono') || p.colorType.toLowerCase().includes('p&b'));
+    return (printers || []).filter(p => {
+      const c = (p?.colorType || '').toLowerCase();
+      return c.includes('mono') || c.includes('p&b') || c.includes('preto');
+    });
   }, [printers]);
 
   const colorPrinters = useMemo(() => {
-    return printers.filter(p => p.colorType.toLowerCase().includes('color'));
+    return (printers || []).filter(p => {
+      const c = (p?.colorType || '').toLowerCase();
+      return c.includes('color');
+    });
   }, [printers]);
 
   // Determine active printer tab (auto chooses based on toner vs ink)
@@ -212,14 +218,15 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   const visiblePrinters = useMemo(() => {
     if (activePrinterTab === 'mono') return monoPrinters;
     if (activePrinterTab === 'color') return colorPrinters;
-    return printers;
+    return printers || [];
   }, [activePrinterTab, monoPrinters, colorPrinters, printers]);
 
   const handleSelectTargetPrinter = (printerId: string) => {
     setTargetPrinterId(printerId);
-    const pr = printers.find(p => p.id === printerId);
+    const pr = (printers || []).find(p => p.id === printerId);
     if (pr) {
-      const fullName = `${pr.brand} ${pr.model} (${pr.colorType})`;
+      const colorLabel = pr.colorType ? ` (${pr.colorType})` : '';
+      const fullName = `${pr.brand || ''} ${pr.model || ''}${colorLabel}`.trim();
       setTargetPrinterName(fullName);
       if (pr.departmentId) {
         setDestinationDepartmentId(pr.departmentId);
@@ -229,7 +236,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     }
   };
 
-  const selectedPrinterObj = printers.find(p => p.id === targetPrinterId);
+  const selectedPrinterObj = (printers || []).find(p => p.id === targetPrinterId);
 
   // Stock synchronization calculation:
   // If we are editing the exact same item, previously withdrawn units are refundable,
@@ -359,13 +366,15 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden my-8">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
+        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
               editingWithdrawal 
                 ? 'bg-amber-950/70 border border-amber-800/60 text-amber-400' 
                 : 'bg-red-950 border border-red-800/60 text-red-400'
@@ -392,7 +401,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="p-3 rounded-lg bg-red-950/80 border border-red-800 text-red-200 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -502,7 +511,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
                 ) : (
                   printers.map((pr) => (
                     <option key={pr.id} value={pr.id}>
-                      {pr.brand} {pr.model} — {pr.colorType} ({pr.status}) - {pr.quantityAvailable} un.
+                      {pr.brand || ''} {pr.model || ''} — {pr.colorType || 'Impressora'} ({pr.status || 'Disponível'}) - {pr.quantityAvailable || 0} un.
                     </option>
                   ))
                 )}
@@ -594,9 +603,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
                   <option value="">-- Selecione a impressora cadastrada que receberá o insumo --</option>
                   {visiblePrinters.map((pr) => {
                     const dep = departments.find(d => d.id === pr.departmentId);
+                    const colorLabel = pr.colorType || 'Impressora';
                     return (
                       <option key={pr.id} value={pr.id}>
-                        {pr.brand} {pr.model} — {pr.colorType} (Local: {dep?.name || 'Central T.I.'}) [{pr.status}]
+                        {pr.brand || ''} {pr.model || ''} — {colorLabel} (Local: {dep?.name || 'Central T.I.'}) [{pr.status || 'Disponível'}]
                       </option>
                     );
                   })}
@@ -615,10 +625,12 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
                   <div>
                     <div className="font-bold text-white flex items-center gap-1.5">
                       <Printer className="w-3.5 h-3.5 text-red-400" />
-                      <span>{selectedPrinterObj.brand} {selectedPrinterObj.model}</span>
-                      <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded font-semibold">
-                        {selectedPrinterObj.colorType}
-                      </span>
+                      <span>{selectedPrinterObj.brand || ''} {selectedPrinterObj.model || ''}</span>
+                      {selectedPrinterObj.colorType && (
+                        <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded font-semibold">
+                          {selectedPrinterObj.colorType}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-zinc-400 flex items-center gap-1 mt-1">
                       <MapPin className="w-3 h-3 text-red-400" />

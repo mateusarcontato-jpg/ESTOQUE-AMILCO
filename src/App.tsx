@@ -802,6 +802,14 @@ export default function App() {
           setIsWithdrawalModalOpen(true);
         }}
         onOpenDepartmentModal={() => setIsDepartmentModalOpen(true)}
+        onOpenRequesterModal={() => {
+          setEditingRequester(null);
+          setIsRequesterModalOpen(true);
+        }}
+        onOpenPurchaseModal={() => {
+          setEditingPurchase(null);
+          setIsPurchaseModalOpen(true);
+        }}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onLogout={handleLogout}
         onManualSync={handleManualSync}

@@ -53,8 +53,8 @@ export const PrintersView: React.FC<PrintersViewProps> = ({
   const filteredPrinters = useMemo(() => {
     return printers.filter((p) => {
       const matchesSearch =
-        p.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.model || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.brand || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.suppliesNotes && p.suppliesNotes.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (p.patrimonyNumber && p.patrimonyNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (p.serialNumber && p.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()));

@@ -42,34 +42,18 @@ export const COLLECTIONS = {
   purchases: 'purchases',
 } as const;
 
-// Seed initial data to cloud if collections are empty
+// Seed initial departments to cloud if departments collection is empty
 export async function seedInitialFirestoreDataIfEmpty() {
   try {
-    // Check departments
+    // Only check default departments (Acaraú, Preá, CD, Serraria)
     const depSnap = await getDocs(collection(db, COLLECTIONS.departments));
     if (depSnap.empty) {
       for (const dep of INITIAL_DEPARTMENTS) {
         await setDoc(doc(db, COLLECTIONS.departments, dep.id), dep);
       }
     }
-
-    // Check products
-    const prodSnap = await getDocs(collection(db, COLLECTIONS.products));
-    if (prodSnap.empty) {
-      for (const prod of INITIAL_PRODUCTS) {
-        await setDoc(doc(db, COLLECTIONS.products, prod.id), prod);
-      }
-    }
-
-    // Check printers
-    const printSnap = await getDocs(collection(db, COLLECTIONS.printers));
-    if (printSnap.empty) {
-      for (const pr of INITIAL_PRINTERS) {
-        await setDoc(doc(db, COLLECTIONS.printers, pr.id), pr);
-      }
-    }
   } catch (error) {
-    console.error('Error seeding initial Firestore data:', error);
+    console.error('Error seeding default departments:', error);
   }
 }
 

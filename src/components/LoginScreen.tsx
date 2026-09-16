@@ -24,18 +24,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
     setIsLoading(true);
 
-    // Realistic authentication flow (accepts demo credentials or any valid non-empty login for user convenience)
+    // Validate credentials: user 'admin' and password 'amilco'
     setTimeout(() => {
-      // Default recommended user: admin / admin123 or any user
-      if (password.length < 4) {
-        setError('A senha deve conter no mínimo 4 dígitos.');
+      const normalizedUser = username.trim().toLowerCase();
+
+      if (normalizedUser !== 'admin' || password !== 'amilco') {
+        setError('Usuário ou senha incorretos. Acesso restrito ao Administrador T.I.');
         setIsLoading(false);
         return;
       }
 
       const session: UserSession = {
-        username: username.trim(),
-        name: username.toLowerCase().includes('admin') ? 'Administrador T.I.' : `Técnico (${username.trim()})`,
+        username: 'admin',
+        name: 'Administrador T.I.',
         role: 'Responsável T.I. / Suporte',
         authenticated: true,
       };
@@ -45,9 +46,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     }, 450);
   };
 
-  const handleQuickDemoFill = () => {
-    setUsername('admin.ti');
-    setPassword('admin123');
+  const handleQuickFill = () => {
+    setUsername('admin');
+    setPassword('amilco');
     setError(null);
   };
 
@@ -108,7 +109,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="ex: admin.ti ou seu usuário"
+                  placeholder="ex: admin"
                   className="w-full pl-10 pr-4 py-3 bg-zinc-950/80 border border-zinc-800 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl text-white placeholder-zinc-600 text-sm outline-none transition-all"
                   autoComplete="username"
                   required
@@ -165,11 +166,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           <div className="mt-6 pt-5 border-t border-zinc-800/80 flex flex-col items-center">
             <button
               type="button"
-              onClick={handleQuickDemoFill}
+              onClick={handleQuickFill}
               className="text-xs text-zinc-400 hover:text-red-400 transition-colors flex items-center gap-1.5 py-1 px-2.5 rounded-lg hover:bg-zinc-800/50 cursor-pointer"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-red-500" />
-              <span>Usar credenciais de demonstração (admin.ti / admin123)</span>
+              <span>Preencher credenciais de acesso (admin / amilco)</span>
             </button>
           </div>
 

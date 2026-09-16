@@ -30,6 +30,7 @@ interface HeaderProps {
   onOpenDepartmentModal: () => void;
   onOpenReportModal: () => void;
   onLogout: () => void;
+  onManualSync?: () => void;
   productsCount?: number;
   lowStockCount?: number;
   purchasesCount?: number;
@@ -45,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWithdrawalModal,
   onOpenReportModal,
   onLogout,
+  onManualSync,
   productsCount = 0,
   lowStockCount = 0,
   isCloudConnected = true,
@@ -104,13 +106,15 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Cloud Realtime Sync Status Indicator */}
-            <div 
-              className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition ${
+            <button 
+              type="button"
+              onClick={onManualSync}
+              className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition cursor-pointer hover:opacity-90 active:scale-95 ${
                 isCloudConnected 
                   ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60' 
                   : 'bg-amber-950/40 text-amber-300 border-amber-800/60'
               }`}
-              title={isCloudConnected ? 'Conectado ao Firebase Firestore em tempo real (dados compartilhados em nuvem)' : 'Modo offline com cache local'}
+              title="Clique para forçar sincronização com o banco de dados Firebase agora"
             >
               {isSyncing ? (
                 <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
@@ -120,9 +124,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <CloudOff className="w-3.5 h-3.5 text-amber-400" />
               )}
               <span className="truncate">
-                {isSyncing ? 'Sincronizando...' : isCloudConnected ? 'Nuvem Online' : 'Cache Local'}
+                {isSyncing ? 'Sincronizando...' : isCloudConnected ? 'Nuvem Conectada' : 'Modo Offline'}
               </span>
-            </div>
+              <RefreshCw className={`w-3 h-3 text-zinc-400 hover:text-white ${isSyncing ? 'animate-spin' : ''}`} />
+            </button>
 
             {/* Separator */}
             <div className="h-6 w-px bg-zinc-800 mx-1 hidden sm:block" />

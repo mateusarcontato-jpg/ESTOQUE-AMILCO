@@ -42,6 +42,17 @@ export const COLLECTIONS = {
   purchases: 'purchases',
 } as const;
 
+// Clean undefined fields so Firestore setDoc never fails
+export function cleanFirestoreData<T extends Record<string, any>>(data: T): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
 // Seed initial departments to cloud if departments collection is empty
 export async function seedInitialFirestoreDataIfEmpty() {
   try {
@@ -49,12 +60,33 @@ export async function seedInitialFirestoreDataIfEmpty() {
     const depSnap = await getDocs(collection(db, COLLECTIONS.departments));
     if (depSnap.empty) {
       for (const dep of INITIAL_DEPARTMENTS) {
-        await setDoc(doc(db, COLLECTIONS.departments, dep.id), dep);
+        await setDoc(doc(db, COLLECTIONS.departments, dep.id), cleanFirestoreData(dep));
       }
     }
   } catch (error) {
     console.error('Error seeding default departments:', error);
   }
+}
+
+// Fetch all cloud data manually on demand (useful for immediate refresh or mobile devices)
+export async function fetchAllCloudData() {
+  const [depSnap, prodSnap, printSnap, reqSnap, withSnap, purSnap] = await Promise.all([
+    getDocs(collection(db, COLLECTIONS.departments)),
+    getDocs(collection(db, COLLECTIONS.products)),
+    getDocs(collection(db, COLLECTIONS.printers)),
+    getDocs(collection(db, COLLECTIONS.requesters)),
+    getDocs(collection(db, COLLECTIONS.withdrawals)),
+    getDocs(collection(db, COLLECTIONS.purchases)),
+  ]);
+
+  const departments = depSnap.docs.map(d => d.data() as Department);
+  const products = prodSnap.docs.map(d => d.data() as Product);
+  const printers = printSnap.docs.map(d => d.data() as PrinterItem);
+  const requesters = reqSnap.docs.map(d => d.data() as Requester);
+  const withdrawals = withSnap.docs.map(d => d.data() as WithdrawalRecord);
+  const purchases = purSnap.docs.map(d => d.data() as MonthlyPurchase);
+
+  return { departments, products, printers, requesters, withdrawals, purchases };
 }
 
 // --- Realtime Subscriptions ---
@@ -127,7 +159,7 @@ export function subscribeToPurchases(callback: (purchases: MonthlyPurchase[]) =>
 // --- Cloud Write Helpers ---
 
 export async function cloudSaveProduct(product: Product) {
-  await setDoc(doc(db, COLLECTIONS.products, product.id), product);
+  await setDoc(doc(db, COLLECTIONS.products, product.id), cleanFirestoreData(product));
 }
 
 export async function cloudDeleteProduct(productId: string) {
@@ -135,7 +167,7 @@ export async function cloudDeleteProduct(productId: string) {
 }
 
 export async function cloudSavePrinter(printer: PrinterItem) {
-  await setDoc(doc(db, COLLECTIONS.printers, printer.id), printer);
+  await setDoc(doc(db, COLLECTIONS.printers, printer.id), cleanFirestoreData(printer));
 }
 
 export async function cloudDeletePrinter(printerId: string) {
@@ -143,7 +175,7 @@ export async function cloudDeletePrinter(printerId: string) {
 }
 
 export async function cloudSaveRequester(requester: Requester) {
-  await setDoc(doc(db, COLLECTIONS.requesters, requester.id), requester);
+  await setDoc(doc(db, COLLECTIONS.requesters, requester.id), cleanFirestoreData(requester));
 }
 
 export async function cloudDeleteRequester(requesterId: string) {
@@ -151,7 +183,7 @@ export async function cloudDeleteRequester(requesterId: string) {
 }
 
 export async function cloudSavePurchase(purchase: MonthlyPurchase) {
-  await setDoc(doc(db, COLLECTIONS.purchases, purchase.id), purchase);
+  await setDoc(doc(db, COLLECTIONS.purchases, purchase.id), cleanFirestoreData(purchase));
 }
 
 export async function cloudDeletePurchase(purchaseId: string) {
@@ -159,7 +191,7 @@ export async function cloudDeletePurchase(purchaseId: string) {
 }
 
 export async function cloudSaveDepartment(department: Department) {
-  await setDoc(doc(db, COLLECTIONS.departments, department.id), department);
+  await setDoc(doc(db, COLLECTIONS.departments, department.id), cleanFirestoreData(department));
 }
 
 export async function cloudDeleteDepartment(departmentId: string) {
@@ -171,14 +203,14 @@ export async function cloudRecordWithdrawal(
   updatedProduct?: Product, 
   updatedPrinter?: PrinterItem
 ) {
-  await setDoc(doc(db, COLLECTIONS.withdrawals, record.id), record);
+  await setDoc(doc(db, COLLECTIONS.withdrawals, record.id), cleanFirestoreData(record));
   
   if (updatedProduct) {
-    await setDoc(doc(db, COLLECTIONS.products, updatedProduct.id), updatedProduct);
+    await setDoc(doc(db, COLLECTIONS.products, updatedProduct.id), cleanFirestoreData(updatedProduct));
   }
   
   if (updatedPrinter) {
-    await setDoc(doc(db, COLLECTIONS.printers, updatedPrinter.id), updatedPrinter);
+    await setDoc(doc(db, COLLECTIONS.printers, updatedPrinter.id), cleanFirestoreData(updatedPrinter));
   }
 }
 

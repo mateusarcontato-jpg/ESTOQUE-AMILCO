@@ -43,6 +43,7 @@ import {
   subscribeToRequesters,
   subscribeToWithdrawals,
   subscribeToPurchases,
+  fetchAllCloudData,
   cloudSaveProduct,
   cloudDeleteProduct,
   cloudSavePrinter,
@@ -121,41 +122,47 @@ export default function App() {
     async function initFirebaseSync() {
       setIsSyncing(true);
       try {
-        await testFirestoreConnection();
-        await seedInitialFirestoreDataIfEmpty();
-        setIsCloudConnected(true);
-
         unsubscribeDepartments = subscribeToDepartments((cloudDeps) => {
           if (cloudDeps.length > 0) {
             setDepartments(cloudDeps);
             saveStoredDepartments(cloudDeps);
           }
+          setIsCloudConnected(true);
         });
 
         unsubscribeProducts = subscribeToProducts((cloudProds) => {
           setProducts(cloudProds);
           saveStoredProducts(cloudProds);
+          setIsCloudConnected(true);
+          setIsSyncing(false);
         });
 
         unsubscribePrinters = subscribeToPrinters((cloudPrinters) => {
           setPrinters(cloudPrinters);
           saveStoredPrinters(cloudPrinters);
+          setIsCloudConnected(true);
         });
 
         unsubscribeRequesters = subscribeToRequesters((cloudReqs) => {
           setRequesters(cloudReqs);
           saveStoredRequesters(cloudReqs);
+          setIsCloudConnected(true);
         });
 
         unsubscribeWithdrawals = subscribeToWithdrawals((cloudWiths) => {
           setWithdrawals(cloudWiths);
           saveStoredWithdrawals(cloudWiths);
+          setIsCloudConnected(true);
         });
 
         unsubscribePurchases = subscribeToPurchases((cloudPurchases) => {
           setPurchases(cloudPurchases);
           saveStoredPurchases(cloudPurchases);
+          setIsCloudConnected(true);
         });
+
+        // Seed default departments if absent
+        seedInitialFirestoreDataIfEmpty().catch(console.warn);
       } catch (err) {
         console.error('Firebase realtime sync initialization failed:', err);
         setIsCloudConnected(false);
@@ -534,6 +541,36 @@ export default function App() {
     }
   };
 
+  // Manual cloud refresh handler
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const data = await fetchAllCloudData();
+      if (data.departments.length > 0) {
+        setDepartments(data.departments);
+        saveStoredDepartments(data.departments);
+      }
+      setProducts(data.products);
+      saveStoredProducts(data.products);
+      setPrinters(data.printers);
+      saveStoredPrinters(data.printers);
+      setRequesters(data.requesters);
+      saveStoredRequesters(data.requesters);
+      setWithdrawals(data.withdrawals);
+      saveStoredWithdrawals(data.withdrawals);
+      setPurchases(data.purchases);
+      saveStoredPurchases(data.purchases);
+      setIsCloudConnected(true);
+      showToast(`Nuvem sincronizada! (${data.products.length} produtos, ${data.printers.length} impressoras, ${data.purchases.length} compras)`);
+    } catch (err) {
+      console.error('Manual sync error:', err);
+      showToast('Erro ao sincronizar com o banco de dados na nuvem.');
+      setIsCloudConnected(false);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Reset / Clear all stock data
   const handleClearAllStock = async () => {
     if (window.confirm('Tem certeza que deseja zerar o sistema? Todos os produtos cadastrados, impressoras, solicitantes, compras e histórico de retiradas serão limpos na nuvem e localmente.')) {
@@ -587,6 +624,7 @@ export default function App() {
         onOpenDepartmentModal={() => setIsDepartmentModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onLogout={handleLogout}
+        onManualSync={handleManualSync}
         productsCount={products.length}
         lowStockCount={lowStockCount}
         purchasesCount={purchases.length}

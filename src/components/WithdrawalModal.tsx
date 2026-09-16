@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, MinusCircle, AlertCircle, ArrowUpRight, Plus, User, Store } from 'lucide-react';
+import { X, MinusCircle, AlertCircle, ArrowUpRight, Plus, User, Store, Pencil, Check } from 'lucide-react';
 import { Product, Department, WithdrawalRecord, PrinterItem, Requester } from '../types';
 
 interface WithdrawalModalProps {
@@ -11,7 +11,9 @@ interface WithdrawalModalProps {
   requesters?: Requester[];
   selectedProduct?: Product | null;
   prefillRequester?: Requester | null;
+  editingWithdrawal?: WithdrawalRecord | null;
   onRecordWithdrawal: (record: Omit<WithdrawalRecord, 'id' | 'date'>) => void;
+  onUpdateWithdrawal?: (updatedRecord: WithdrawalRecord, oldRecord: WithdrawalRecord) => void;
   onOpenNewDepartmentModal: () => void;
   onOpenNewRequesterModal?: () => void;
   currentTechnicianName: string;
@@ -26,7 +28,9 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   requesters = [],
   selectedProduct,
   prefillRequester,
+  editingWithdrawal,
   onRecordWithdrawal,
+  onUpdateWithdrawal,
   onOpenNewDepartmentModal,
   onOpenNewRequesterModal,
   currentTechnicianName,
@@ -46,31 +50,66 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedProduct) {
+    if (editingWithdrawal) {
+      // Prefill for editing
+      setItemType(editingWithdrawal.itemType);
+      setSelectedItemId(editingWithdrawal.itemId);
+      setQuantity(editingWithdrawal.quantity);
+      setDestinationDepartmentId(editingWithdrawal.destinationDepartmentId);
+
+      if (editingWithdrawal.requesterId && requesters.some(r => r.id === editingWithdrawal.requesterId)) {
+        setSelectedRequesterId(editingWithdrawal.requesterId);
+        setCustomRequesterName('');
+        setCustomRequesterSection('');
+      } else {
+        const foundByName = requesters.find(r => r.name.toLowerCase() === editingWithdrawal.requesterName.toLowerCase());
+        if (foundByName) {
+          setSelectedRequesterId(foundByName.id);
+          setCustomRequesterName('');
+          setCustomRequesterSection('');
+        } else {
+          setSelectedRequesterId('custom');
+          setCustomRequesterName(editingWithdrawal.requesterName);
+          setCustomRequesterSection(editingWithdrawal.requesterSection || '');
+        }
+      }
+
+      setTechnicianName(editingWithdrawal.technicianName || currentTechnicianName);
+      setTicketOrReason(editingWithdrawal.ticketOrReason || '');
+    } else if (selectedProduct) {
       setItemType('product');
       setSelectedItemId(selectedProduct.id);
       setQuantity(1);
-    } else if (products.length > 0) {
-      setSelectedItemId(products[0].id);
+      setTechnicianName(currentTechnicianName);
+      setTicketOrReason('');
+    } else {
+      setItemType('product');
+      if (products.length > 0) {
+        setSelectedItemId(products[0].id);
+      }
+      setQuantity(1);
+      setTechnicianName(currentTechnicianName);
+      setTicketOrReason('');
     }
 
-    if (prefillRequester) {
-      setSelectedRequesterId(prefillRequester.id);
-      if (prefillRequester.storeDepartmentId) {
-        setDestinationDepartmentId(prefillRequester.storeDepartmentId);
+    if (!editingWithdrawal) {
+      if (prefillRequester) {
+        setSelectedRequesterId(prefillRequester.id);
+        if (prefillRequester.storeDepartmentId) {
+          setDestinationDepartmentId(prefillRequester.storeDepartmentId);
+        }
+      } else if (requesters.length > 0) {
+        setSelectedRequesterId(requesters[0].id);
+        if (requesters[0].storeDepartmentId) {
+          setDestinationDepartmentId(requesters[0].storeDepartmentId);
+        }
+      } else if (departments.length > 0) {
+        setDestinationDepartmentId(departments[0].id);
       }
-    } else if (requesters.length > 0) {
-      setSelectedRequesterId(requesters[0].id);
-      if (requesters[0].storeDepartmentId) {
-        setDestinationDepartmentId(requesters[0].storeDepartmentId);
-      }
-    } else if (departments.length > 0) {
-      setDestinationDepartmentId(departments[0].id);
     }
 
-    setTechnicianName(currentTechnicianName);
     setError(null);
-  }, [selectedProduct, prefillRequester, products, departments, requesters, currentTechnicianName, isOpen]);
+  }, [editingWithdrawal, selectedProduct, prefillRequester, products, departments, requesters, currentTechnicianName, isOpen]);
 
   if (!isOpen) return null;
 
@@ -83,9 +122,22 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     ? printers.find(p => p.id === selectedItemId)
     : null;
 
-  const maxAvailable = itemType === 'product'
+  // Stock synchronization calculation:
+  // If we are editing the exact same item, previously withdrawn units are refundable,
+  // so max allowed to withdraw is: currentInStock + editingWithdrawal.quantity
+  const isEditingSameItem = Boolean(
+    editingWithdrawal && 
+    editingWithdrawal.itemType === itemType && 
+    editingWithdrawal.itemId === selectedItemId
+  );
+
+  const baseAvailable = itemType === 'product'
     ? (currentProduct?.quantity ?? 0)
     : (currentPrinter?.quantityAvailable ?? 0);
+
+  const maxAvailable = isEditingSameItem && editingWithdrawal
+    ? baseAvailable + editingWithdrawal.quantity
+    : baseAvailable;
 
   // When user selects a registered requester
   const handleSelectRequester = (reqId: string) => {
@@ -153,19 +205,39 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       ? (currentProduct?.name || 'Item')
       : `${currentPrinter?.brand || ''} ${currentPrinter?.model || ''} (${currentPrinter?.colorType || ''})`;
 
-    onRecordWithdrawal({
-      itemId: selectedItemId,
-      itemName,
-      itemType,
-      quantity: Number(quantity),
-      destinationDepartmentId,
-      destinationDepartmentName: destName,
-      requesterId: finalRequesterId,
-      requesterName: finalRequesterName,
-      requesterSection: finalRequesterSection || undefined,
-      technicianName: technicianName.trim() || 'T.I. Suporte',
-      ticketOrReason: ticketOrReason.trim() || 'Retirada solicitada para o setor',
-    });
+    if (editingWithdrawal && onUpdateWithdrawal) {
+      onUpdateWithdrawal(
+        {
+          ...editingWithdrawal,
+          itemId: selectedItemId,
+          itemName,
+          itemType,
+          quantity: Number(quantity),
+          destinationDepartmentId,
+          destinationDepartmentName: destName,
+          requesterId: finalRequesterId,
+          requesterName: finalRequesterName,
+          requesterSection: finalRequesterSection || undefined,
+          technicianName: technicianName.trim() || 'T.I. Suporte',
+          ticketOrReason: ticketOrReason.trim() || 'Retirada solicitada para o setor',
+        },
+        editingWithdrawal
+      );
+    } else {
+      onRecordWithdrawal({
+        itemId: selectedItemId,
+        itemName,
+        itemType,
+        quantity: Number(quantity),
+        destinationDepartmentId,
+        destinationDepartmentName: destName,
+        requesterId: finalRequesterId,
+        requesterName: finalRequesterName,
+        requesterSection: finalRequesterSection || undefined,
+        technicianName: technicianName.trim() || 'T.I. Suporte',
+        ticketOrReason: ticketOrReason.trim() || 'Retirada solicitada para o setor',
+      });
+    }
 
     onClose();
   };
@@ -176,15 +248,21 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-red-950 border border-red-800/60 flex items-center justify-center text-red-400">
-              <MinusCircle className="w-4 h-4" />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              editingWithdrawal 
+                ? 'bg-amber-950/70 border border-amber-800/60 text-amber-400' 
+                : 'bg-red-950 border border-red-800/60 text-red-400'
+            }`}>
+              {editingWithdrawal ? <Pencil className="w-4 h-4" /> : <MinusCircle className="w-4 h-4" />}
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                Registrar Retirada / Saída de Estoque
+                {editingWithdrawal ? 'Editar Registro de Retirada / Saída' : 'Registrar Retirada / Saída de Estoque'}
               </h2>
               <p className="text-xs text-zinc-400">
-                Baixa imediata no inventário, vinculando ao solicitante e parte da loja
+                {editingWithdrawal 
+                  ? 'Ajuste quantidade, item, destino ou solicitante com recálculo automático de estoque' 
+                  : 'Baixa imediata no inventário, vinculando ao solicitante e parte da loja'}
               </p>
             </div>
           </div>
@@ -286,7 +364,12 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
             <div className="mt-1.5 flex items-center justify-between text-xs">
               <span className="text-zinc-500">Saldo atual no estoque:</span>
               <span className={`font-semibold ${maxAvailable > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {maxAvailable} {itemType === 'product' ? currentProduct?.unit || 'un' : 'unidades'} disponíveis
+                {baseAvailable} {itemType === 'product' ? currentProduct?.unit || 'un' : 'unidades'} em estoque
+                {isEditingSameItem && editingWithdrawal && (
+                  <span className="text-amber-400 font-normal ml-1">
+                    (+{editingWithdrawal.quantity} da retirada em edição = {maxAvailable} máx)
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -307,7 +390,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
                 required
               />
               <span className="text-xs text-zinc-400">
-                Máximo permitido: <strong>{maxAvailable}</strong>
+                Máximo permitido: <strong className="text-white">{maxAvailable}</strong>
               </span>
             </div>
           </div>
@@ -458,10 +541,14 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
             <button
               type="submit"
               disabled={maxAvailable <= 0}
-              className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-bold rounded-xl shadow-md shadow-red-950 flex items-center gap-1.5 transition cursor-pointer"
+              className={`px-5 py-2.5 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:pointer-events-none ${
+                editingWithdrawal
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 shadow-amber-950'
+                  : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 shadow-red-950'
+              }`}
             >
-              <ArrowUpRight className="w-4 h-4" />
-              <span>Confirmar Retirada</span>
+              {editingWithdrawal ? <Check className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4 text-white" />}
+              <span>{editingWithdrawal ? 'Salvar Alterações & Sincronizar' : 'Confirmar Retirada'}</span>
             </button>
           </div>
         </form>

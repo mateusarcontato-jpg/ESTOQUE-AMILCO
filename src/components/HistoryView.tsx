@@ -9,7 +9,9 @@ import {
   FileText, 
   Package, 
   Printer,
-  MinusCircle
+  MinusCircle,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { WithdrawalRecord, Department } from '../types';
 
@@ -18,6 +20,8 @@ interface HistoryViewProps {
   departments: Department[];
   onOpenWithdrawalModal: () => void;
   onOpenReportModal?: () => void;
+  onEditWithdrawal?: (record: WithdrawalRecord) => void;
+  onDeleteWithdrawal?: (record: WithdrawalRecord) => void;
 }
 
 export const HistoryView: React.FC<HistoryViewProps> = ({
@@ -25,6 +29,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   departments,
   onOpenWithdrawalModal,
   onOpenReportModal,
+  onEditWithdrawal,
+  onDeleteWithdrawal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
@@ -205,11 +211,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   <th className="py-3 px-4">Quem Retirou / Solicitante</th>
                   <th className="py-3 px-4">Técnico TI</th>
                   <th className="py-3 px-4">Motivo / Chamado</th>
+                  <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60 text-xs">
                 {filteredRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-zinc-800/30 transition">
+                  <tr key={record.id} className="hover:bg-zinc-800/30 transition group">
                     <td className="py-3.5 px-4 text-zinc-400 whitespace-nowrap font-mono text-[11px]">
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-zinc-500" />
@@ -259,6 +266,39 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                       <span className="line-clamp-2 text-[11px]">
                         {record.ticketOrReason}
                       </span>
+                    </td>
+
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        {onEditWithdrawal && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditWithdrawal(record);
+                            }}
+                            title="Editar esta saída (quantidade, item, destino ou solicitante)"
+                            className="px-2.5 py-1.5 bg-zinc-800/90 hover:bg-amber-950/90 text-zinc-300 hover:text-amber-300 border border-zinc-700/80 hover:border-amber-700/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Editar</span>
+                          </button>
+                        )}
+                        {onDeleteWithdrawal && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteWithdrawal(record);
+                            }}
+                            title="Excluir retirada e devolver itens ao estoque"
+                            className="px-2.5 py-1.5 bg-zinc-800/90 hover:bg-red-950/90 text-zinc-300 hover:text-red-300 border border-zinc-700/80 hover:border-red-800/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            <span>Excluir</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

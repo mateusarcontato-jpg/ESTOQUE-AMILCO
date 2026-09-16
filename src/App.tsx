@@ -33,6 +33,7 @@ import { RequesterModal } from './components/RequesterModal';
 import { MonthlyPurchasesView } from './components/MonthlyPurchasesView';
 import { PurchaseModal } from './components/PurchaseModal';
 import { ReportModal } from './components/ReportModal';
+import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { CheckCircle2, RotateCcw, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import {
   seedInitialFirestoreDataIfEmpty,
@@ -55,6 +56,8 @@ import {
   cloudSavePurchase,
   cloudDeletePurchase,
   cloudRecordWithdrawal,
+  cloudUpdateWithdrawalAndStock,
+  cloudDeleteWithdrawal,
   cloudClearAllData
 } from './services/firebaseService';
 
@@ -85,6 +88,7 @@ export default function App() {
   const [editingPrinter, setEditingPrinter] = useState<PrinterItem | null>(null);
 
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [editingWithdrawal, setEditingWithdrawal] = useState<WithdrawalRecord | null>(null);
   const [withdrawalPrefillProduct, setWithdrawalPrefillProduct] = useState<Product | null>(null);
   const [withdrawalPrefillRequester, setWithdrawalPrefillRequester] = useState<Requester | null>(null);
 
@@ -97,6 +101,8 @@ export default function App() {
   const [editingPurchase, setEditingPurchase] = useState<MonthlyPurchase | null>(null);
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [withdrawalToDelete, setWithdrawalToDelete] = useState<WithdrawalRecord | null>(null);
+  const [isDeletingWithdrawal, setIsDeletingWithdrawal] = useState(false);
 
   // Filter state shortcuts
   const [filterOnlyLowStock, setFilterOnlyLowStock] = useState(false);
@@ -384,6 +390,7 @@ export default function App() {
   };
 
   const handleQuickWithdrawalForRequester = (requester: Requester) => {
+    setEditingWithdrawal(null);
     setWithdrawalPrefillRequester(requester);
     setWithdrawalPrefillProduct(null);
     setIsWithdrawalModalOpen(true);
@@ -434,6 +441,178 @@ export default function App() {
     }
 
     showToast(`Retirada registrada: ${recordData.quantity}x ${recordData.itemName} enviados para ${recordData.destinationDepartmentName}!`);
+  };
+
+  const handleUpdateWithdrawal = async (
+    updatedRecord: WithdrawalRecord,
+    oldRecord: WithdrawalRecord
+  ) => {
+    const affectedProducts: Product[] = [];
+    const affectedPrinters: PrinterItem[] = [];
+
+    let currentProducts = [...products];
+    let currentPrinters = [...printers];
+
+    const sameItem = oldRecord.itemType === updatedRecord.itemType && oldRecord.itemId === updatedRecord.itemId;
+
+    if (sameItem) {
+      const qtyDiff = updatedRecord.quantity - oldRecord.quantity;
+
+      if (updatedRecord.itemType === 'product') {
+        const prod = currentProducts.find(p => p.id === updatedRecord.itemId);
+        if (prod) {
+          if (qtyDiff > 0 && prod.quantity < qtyDiff) {
+            showToast(`Estoque insuficiente! Restam apenas ${prod.quantity} unidades para aumentar a retirada.`);
+            return;
+          }
+          const updatedProd: Product = {
+            ...prod,
+            quantity: Math.max(0, prod.quantity - qtyDiff),
+            updatedAt: new Date().toISOString(),
+          };
+          currentProducts = currentProducts.map(p => p.id === prod.id ? updatedProd : p);
+          affectedProducts.push(updatedProd);
+        }
+      } else {
+        const pr = currentPrinters.find(p => p.id === updatedRecord.itemId);
+        if (pr) {
+          if (qtyDiff > 0 && pr.quantityAvailable < qtyDiff) {
+            showToast(`Quantidade de impressoras insuficiente! Restam ${pr.quantityAvailable} disponíveis.`);
+            return;
+          }
+          const updatedPr: PrinterItem = {
+            ...pr,
+            quantityAvailable: Math.max(0, pr.quantityAvailable - qtyDiff),
+            departmentId: updatedRecord.destinationDepartmentId,
+            updatedAt: new Date().toISOString(),
+          };
+          currentPrinters = currentPrinters.map(p => p.id === pr.id ? updatedPr : p);
+          affectedPrinters.push(updatedPr);
+        }
+      }
+    } else {
+      // Changed item
+      // 1. Refund old item
+      if (oldRecord.itemType === 'product') {
+        const oldProd = currentProducts.find(p => p.id === oldRecord.itemId);
+        if (oldProd) {
+          const refundedProd: Product = {
+            ...oldProd,
+            quantity: oldProd.quantity + oldRecord.quantity,
+            updatedAt: new Date().toISOString(),
+          };
+          currentProducts = currentProducts.map(p => p.id === oldProd.id ? refundedProd : p);
+          affectedProducts.push(refundedProd);
+        }
+      } else {
+        const oldPr = currentPrinters.find(p => p.id === oldRecord.itemId);
+        if (oldPr) {
+          const refundedPr: PrinterItem = {
+            ...oldPr,
+            quantityAvailable: oldPr.quantityAvailable + oldRecord.quantity,
+            updatedAt: new Date().toISOString(),
+          };
+          currentPrinters = currentPrinters.map(p => p.id === oldPr.id ? refundedPr : p);
+          affectedPrinters.push(refundedPr);
+        }
+      }
+
+      // 2. Deduct from new item
+      if (updatedRecord.itemType === 'product') {
+        const newProd = currentProducts.find(p => p.id === updatedRecord.itemId);
+        if (newProd) {
+          if (newProd.quantity < updatedRecord.quantity) {
+            showToast(`Estoque insuficiente no novo item selecionado (${newProd.quantity} disponíveis).`);
+            return;
+          }
+          const updatedNewProd: Product = {
+            ...newProd,
+            quantity: Math.max(0, newProd.quantity - updatedRecord.quantity),
+            updatedAt: new Date().toISOString(),
+          };
+          currentProducts = currentProducts.map(p => p.id === newProd.id ? updatedNewProd : p);
+          affectedProducts.push(updatedNewProd);
+        }
+      } else {
+        const newPr = currentPrinters.find(p => p.id === updatedRecord.itemId);
+        if (newPr) {
+          if (newPr.quantityAvailable < updatedRecord.quantity) {
+            showToast(`Impressoras insuficientes no novo item selecionado!`);
+            return;
+          }
+          const updatedNewPr: PrinterItem = {
+            ...newPr,
+            quantityAvailable: Math.max(0, newPr.quantityAvailable - updatedRecord.quantity),
+            departmentId: updatedRecord.destinationDepartmentId,
+            status: 'Alocada / Em Uso',
+            updatedAt: new Date().toISOString(),
+          };
+          currentPrinters = currentPrinters.map(p => p.id === newPr.id ? updatedNewPr : p);
+          affectedPrinters.push(updatedNewPr);
+        }
+      }
+    }
+
+    setProducts(currentProducts);
+    setPrinters(currentPrinters);
+    setWithdrawals(prev => prev.map(w => w.id === updatedRecord.id ? updatedRecord : w));
+
+    try {
+      await cloudUpdateWithdrawalAndStock(updatedRecord, affectedProducts, affectedPrinters);
+    } catch (e) {
+      console.warn('Cloud update withdrawal error:', e);
+    }
+
+    setEditingWithdrawal(null);
+    showToast(`Retirada atualizada com sucesso! Estoque sincronizado.`);
+  };
+
+  const handleDeleteWithdrawal = (record: WithdrawalRecord) => {
+    // Open in-app confirmation modal (avoids window.confirm which is blocked in iframes)
+    setWithdrawalToDelete(record);
+  };
+
+  const handleConfirmDeleteWithdrawal = async () => {
+    if (!withdrawalToDelete) return;
+    const record = withdrawalToDelete;
+    setIsDeletingWithdrawal(true);
+
+    let refundedProduct: Product | undefined;
+    let refundedPrinter: PrinterItem | undefined;
+
+    if (record.itemType === 'product') {
+      const prod = products.find(p => p.id === record.itemId);
+      if (prod) {
+        refundedProduct = {
+          ...prod,
+          quantity: prod.quantity + record.quantity,
+          updatedAt: new Date().toISOString(),
+        };
+        setProducts(prev => prev.map(p => p.id === prod.id ? refundedProduct! : p));
+      }
+    } else {
+      const pr = printers.find(p => p.id === record.itemId);
+      if (pr) {
+        refundedPrinter = {
+          ...pr,
+          quantityAvailable: pr.quantityAvailable + record.quantity,
+          updatedAt: new Date().toISOString(),
+        };
+        setPrinters(prev => prev.map(p => p.id === pr.id ? refundedPrinter! : p));
+      }
+    }
+
+    setWithdrawals(prev => prev.filter(w => w.id !== record.id));
+    setWithdrawalToDelete(null);
+    setIsDeletingWithdrawal(false);
+
+    try {
+      await cloudDeleteWithdrawal(record.id, refundedProduct, refundedPrinter);
+    } catch (e) {
+      console.warn('Cloud delete withdrawal error:', e);
+    }
+
+    showToast(`Retirada excluída com sucesso! ${record.quantity}x ${record.itemName} devolvidos ao estoque.`);
   };
 
   // --- Department Registration ---
@@ -617,6 +796,7 @@ export default function App() {
           setIsPrinterModalOpen(true);
         }}
         onOpenWithdrawalModal={() => {
+          setEditingWithdrawal(null);
           setWithdrawalPrefillProduct(null);
           setWithdrawalPrefillRequester(null);
           setIsWithdrawalModalOpen(true);
@@ -642,6 +822,7 @@ export default function App() {
             withdrawals={withdrawals}
             departments={departments}
             onOpenWithdrawalModal={() => {
+              setEditingWithdrawal(null);
               setWithdrawalPrefillProduct(null);
               setWithdrawalPrefillRequester(null);
               setIsWithdrawalModalOpen(true);
@@ -673,6 +854,7 @@ export default function App() {
             }}
             onDeleteProduct={handleDeleteProduct}
             onQuickWithdrawal={(p) => {
+              setEditingWithdrawal(null);
               setWithdrawalPrefillProduct(p);
               setWithdrawalPrefillRequester(null);
               setIsWithdrawalModalOpen(true);
@@ -705,11 +887,19 @@ export default function App() {
             withdrawals={withdrawals}
             departments={departments}
             onOpenWithdrawalModal={() => {
+              setEditingWithdrawal(null);
               setWithdrawalPrefillProduct(null);
               setWithdrawalPrefillRequester(null);
               setIsWithdrawalModalOpen(true);
             }}
             onOpenReportModal={() => setIsReportModalOpen(true)}
+            onEditWithdrawal={(record) => {
+              setEditingWithdrawal(record);
+              setWithdrawalPrefillProduct(null);
+              setWithdrawalPrefillRequester(null);
+              setIsWithdrawalModalOpen(true);
+            }}
+            onDeleteWithdrawal={handleDeleteWithdrawal}
           />
         )}
 
@@ -813,14 +1003,19 @@ export default function App() {
 
       <WithdrawalModal
         isOpen={isWithdrawalModalOpen}
-        onClose={() => setIsWithdrawalModalOpen(false)}
+        onClose={() => {
+          setIsWithdrawalModalOpen(false);
+          setEditingWithdrawal(null);
+        }}
         products={products}
         printers={printers}
         departments={departments}
         requesters={requesters}
         selectedProduct={withdrawalPrefillProduct}
         prefillRequester={withdrawalPrefillRequester}
+        editingWithdrawal={editingWithdrawal}
         onRecordWithdrawal={handleRecordWithdrawal}
+        onUpdateWithdrawal={handleUpdateWithdrawal}
         onOpenNewDepartmentModal={() => {
           setIsWithdrawalModalOpen(false);
           setIsDepartmentModalOpen(true);
@@ -873,6 +1068,31 @@ export default function App() {
         departments={departments}
         requesters={requesters}
         currentTechnicianName={session.name}
+      />
+
+      {/* Modal de Confirmação de Exclusão de Retirada */}
+      <ConfirmDeleteModal
+        isOpen={!!withdrawalToDelete}
+        onClose={() => setWithdrawalToDelete(null)}
+        onConfirm={handleConfirmDeleteWithdrawal}
+        isLoading={isDeletingWithdrawal}
+        title="Excluir Registro de Retirada"
+        message="Deseja realmente excluir este registro de retirada? Esta ação cancelará a saída e devolverá os itens diretamente ao estoque disponível."
+        details={
+          withdrawalToDelete
+            ? [
+                { label: 'Item', value: withdrawalToDelete.itemName },
+                {
+                  label: 'Quantidade a Devolver',
+                  value: `${withdrawalToDelete.quantity} ${withdrawalToDelete.itemType === 'product' ? 'unidades' : 'impressora(s)'}`,
+                },
+                { label: 'Destino', value: withdrawalToDelete.destinationDepartmentName },
+                { label: 'Solicitante', value: withdrawalToDelete.requesterName },
+              ]
+            : []
+        }
+        confirmButtonText="Sim, Excluir e Devolver ao Estoque"
+        cancelButtonText="Cancelar"
       />
     </div>
   );

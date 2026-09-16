@@ -214,6 +214,34 @@ export async function cloudRecordWithdrawal(
   }
 }
 
+export async function cloudUpdateWithdrawalAndStock(
+  record: WithdrawalRecord,
+  affectedProducts: Product[],
+  affectedPrinters: PrinterItem[]
+) {
+  await setDoc(doc(db, COLLECTIONS.withdrawals, record.id), cleanFirestoreData(record));
+  for (const p of affectedProducts) {
+    await setDoc(doc(db, COLLECTIONS.products, p.id), cleanFirestoreData(p));
+  }
+  for (const pr of affectedPrinters) {
+    await setDoc(doc(db, COLLECTIONS.printers, pr.id), cleanFirestoreData(pr));
+  }
+}
+
+export async function cloudDeleteWithdrawal(
+  withdrawalId: string,
+  refundedProduct?: Product,
+  refundedPrinter?: PrinterItem
+) {
+  await deleteDoc(doc(db, COLLECTIONS.withdrawals, withdrawalId));
+  if (refundedProduct) {
+    await setDoc(doc(db, COLLECTIONS.products, refundedProduct.id), cleanFirestoreData(refundedProduct));
+  }
+  if (refundedPrinter) {
+    await setDoc(doc(db, COLLECTIONS.printers, refundedPrinter.id), cleanFirestoreData(refundedPrinter));
+  }
+}
+
 export async function cloudClearAllData() {
   const collectionsToClear = [
     COLLECTIONS.products,

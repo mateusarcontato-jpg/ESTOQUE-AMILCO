@@ -161,36 +161,36 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Navigation Tabs Bar - Compact Single Line (No scrollbar, fits all items seamlessly) */}
-        <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-1.5 border-t border-zinc-800/80 pt-2 pb-1 overflow-x-auto sm:overflow-x-visible scrollbar-none w-full text-xs">
+        {/* Navigation Tabs Bar - Stretched & perfectly aligned with the panel below */}
+        <div className="flex items-center w-full gap-1.5 sm:gap-2 border-t border-zinc-800/80 pt-2 pb-1.5 text-xs">
           {/* 1. Visão Geral */}
           <button
             onClick={() => onTabChange('overview')}
             title="Visão Geral do Sistema"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'overview'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span>Visão Geral</span>
+            <LayoutGrid className="w-4 h-4 shrink-0" />
+            <span className="truncate">Visão Geral</span>
           </button>
 
           {/* 2. Estoque */}
           <button
             onClick={() => onTabChange('products')}
             title="Produtos & Estoque"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'products'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Package className="w-3.5 h-3.5" />
-            <span>Estoque</span>
+            <Package className="w-4 h-4 shrink-0" />
+            <span className="truncate">Estoque</span>
             {lowStockCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-red-600 text-white">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-red-600 text-white shrink-0">
                 {lowStockCount}
               </span>
             )}
@@ -200,70 +200,70 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => onTabChange('printers')}
             title="Impressoras (Cores & Modelos)"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'printers'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Impressoras</span>
+            <Printer className="w-4 h-4 shrink-0" />
+            <span className="truncate">Impressoras</span>
           </button>
 
           {/* 4. Retiradas */}
           <button
             onClick={() => onTabChange('withdrawals')}
             title="Retiradas & Destinos"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'withdrawals'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>Retiradas</span>
+            <ArrowUpRight className="w-4 h-4 shrink-0" />
+            <span className="truncate">Retiradas</span>
           </button>
 
           {/* 5. Departamentos */}
           <button
             onClick={() => onTabChange('departments')}
             title="Departamentos & Lojas"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'departments'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Departamentos</span>
+            <Building2 className="w-4 h-4 shrink-0" />
+            <span className="truncate">Departamentos</span>
           </button>
 
           {/* 6. Solicitantes */}
           <button
             onClick={() => onTabChange('requesters')}
             title="Solicitantes & Setores"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'requesters'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
-            <span>Solicitantes</span>
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="truncate">Solicitantes</span>
           </button>
 
           {/* 7. Compras do Mês */}
           <button
             onClick={() => onTabChange('purchases')}
             title="Compras do Mês & Pedidos com Fornecedores"
-            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'purchases'
                 ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Compras do Mês</span>
+            <ShoppingBag className="w-4 h-4 shrink-0" />
+            <span className="truncate">Compras do Mês</span>
           </button>
         </div>
       </div>

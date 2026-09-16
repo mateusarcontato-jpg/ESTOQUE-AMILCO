@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { X, MinusCircle, AlertCircle, ArrowUpRight, Plus, User, Store, Pencil, Check } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  X, 
+  MinusCircle, 
+  AlertCircle, 
+  ArrowUpRight, 
+  Plus, 
+  User, 
+  Store, 
+  Pencil, 
+  Check, 
+  Printer, 
+  Search, 
+  Sparkles,
+  MapPin
+} from 'lucide-react';
 import { Product, Department, WithdrawalRecord, PrinterItem, Requester } from '../types';
 
 interface WithdrawalModalProps {
@@ -40,6 +54,14 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   const [quantity, setQuantity] = useState<number>(1);
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>('');
   
+  // Search filter for products
+  const [itemSearch, setItemSearch] = useState<string>('');
+
+  // Target printer linked for supplies (tinta / toner)
+  const [targetPrinterId, setTargetPrinterId] = useState<string>('');
+  const [targetPrinterName, setTargetPrinterName] = useState<string>('');
+  const [printerFilterTab, setPrinterFilterTab] = useState<'auto' | 'mono' | 'color' | 'all'>('auto');
+
   // Requester Selection Mode: 'registered' or 'custom'
   const [selectedRequesterId, setSelectedRequesterId] = useState<string>('');
   const [customRequesterName, setCustomRequesterName] = useState<string>('');
@@ -56,6 +78,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       setSelectedItemId(editingWithdrawal.itemId);
       setQuantity(editingWithdrawal.quantity);
       setDestinationDepartmentId(editingWithdrawal.destinationDepartmentId);
+      setTargetPrinterId(editingWithdrawal.targetPrinterId || '');
+      setTargetPrinterName(editingWithdrawal.targetPrinterName || '');
+      setPrinterFilterTab('auto');
+      setItemSearch('');
 
       if (editingWithdrawal.requesterId && requesters.some(r => r.id === editingWithdrawal.requesterId)) {
         setSelectedRequesterId(editingWithdrawal.requesterId);
@@ -80,6 +106,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       setItemType('product');
       setSelectedItemId(selectedProduct.id);
       setQuantity(1);
+      setTargetPrinterId('');
+      setTargetPrinterName('');
+      setPrinterFilterTab('auto');
+      setItemSearch('');
       setTechnicianName(currentTechnicianName);
       setTicketOrReason('');
     } else {
@@ -88,6 +118,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         setSelectedItemId(products[0].id);
       }
       setQuantity(1);
+      setTargetPrinterId('');
+      setTargetPrinterName('');
+      setPrinterFilterTab('auto');
+      setItemSearch('');
       setTechnicianName(currentTechnicianName);
       setTicketOrReason('');
     }
@@ -121,6 +155,81 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
   const currentPrinter = itemType === 'printer'
     ? printers.find(p => p.id === selectedItemId)
     : null;
+
+  // Filtered products list by search query
+  const filteredProducts = useMemo(() => {
+    if (!itemSearch.trim()) return products;
+    const q = itemSearch.toLowerCase().trim();
+    return products.filter(p => 
+      p.name.toLowerCase().includes(q) || 
+      p.category.toLowerCase().includes(q)
+    );
+  }, [products, itemSearch]);
+
+  // When user types in product search, auto-select first match
+  const handleItemSearchChange = (text: string) => {
+    setItemSearch(text);
+    const q = text.toLowerCase().trim();
+    if (q && itemType === 'product') {
+      const matched = products.find(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.category.toLowerCase().includes(q)
+      );
+      if (matched) {
+        setSelectedItemId(matched.id);
+      }
+    }
+  };
+
+  // Smart ink / toner detection
+  const selectedProdName = (currentProduct?.name || '').toLowerCase();
+  const searchLower = itemSearch.toLowerCase().trim();
+
+  const isToner = selectedProdName.includes('toner') || selectedProdName.includes('tonner') ||
+                  searchLower.includes('toner') || searchLower.includes('tonner');
+
+  const isInk = selectedProdName.includes('tinta') || selectedProdName.includes('cartucho') || selectedProdName.includes('refil') ||
+                selectedProdName.includes('amarel') || selectedProdName.includes('yellow') || selectedProdName.includes('magenta') ||
+                selectedProdName.includes('ciano') || selectedProdName.includes('cyan') || selectedProdName.includes('preto') || selectedProdName.includes('black') ||
+                searchLower.includes('tinta') || searchLower.includes('cartucho') || searchLower.includes('refil');
+
+  const isPrinterSupply = itemType === 'product' && (isToner || isInk || currentProduct?.category === 'Impressoras e Suprimentos');
+
+  // Categorize registered printers
+  const monoPrinters = useMemo(() => {
+    return printers.filter(p => p.colorType.toLowerCase().includes('mono') || p.colorType.toLowerCase().includes('p&b'));
+  }, [printers]);
+
+  const colorPrinters = useMemo(() => {
+    return printers.filter(p => p.colorType.toLowerCase().includes('color'));
+  }, [printers]);
+
+  // Determine active printer tab (auto chooses based on toner vs ink)
+  const activePrinterTab = printerFilterTab === 'auto' 
+    ? (isToner ? 'mono' : isInk ? 'color' : 'all') 
+    : printerFilterTab;
+
+  const visiblePrinters = useMemo(() => {
+    if (activePrinterTab === 'mono') return monoPrinters;
+    if (activePrinterTab === 'color') return colorPrinters;
+    return printers;
+  }, [activePrinterTab, monoPrinters, colorPrinters, printers]);
+
+  const handleSelectTargetPrinter = (printerId: string) => {
+    setTargetPrinterId(printerId);
+    const pr = printers.find(p => p.id === printerId);
+    if (pr) {
+      const fullName = `${pr.brand} ${pr.model} (${pr.colorType})`;
+      setTargetPrinterName(fullName);
+      if (pr.departmentId) {
+        setDestinationDepartmentId(pr.departmentId);
+      }
+    } else {
+      setTargetPrinterName('');
+    }
+  };
+
+  const selectedPrinterObj = printers.find(p => p.id === targetPrinterId);
 
   // Stock synchronization calculation:
   // If we are editing the exact same item, previously withdrawn units are refundable,
@@ -205,6 +314,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
       ? (currentProduct?.name || 'Item')
       : `${currentPrinter?.brand || ''} ${currentPrinter?.model || ''} (${currentPrinter?.colorType || ''})`;
 
+    const finalTargetPrinterName = selectedPrinterObj
+      ? `${selectedPrinterObj.brand} ${selectedPrinterObj.model} (${selectedPrinterObj.colorType})`
+      : targetPrinterName || undefined;
+
     if (editingWithdrawal && onUpdateWithdrawal) {
       onUpdateWithdrawal(
         {
@@ -215,6 +328,8 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
           quantity: Number(quantity),
           destinationDepartmentId,
           destinationDepartmentName: destName,
+          targetPrinterId: targetPrinterId || undefined,
+          targetPrinterName: finalTargetPrinterName,
           requesterId: finalRequesterId,
           requesterName: finalRequesterName,
           requesterSection: finalRequesterSection || undefined,
@@ -231,6 +346,8 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
         quantity: Number(quantity),
         destinationDepartmentId,
         destinationDepartmentName: destName,
+        targetPrinterId: targetPrinterId || undefined,
+        targetPrinterName: finalTargetPrinterName,
         requesterId: finalRequesterId,
         requesterName: finalRequesterName,
         requesterSection: finalRequesterSection || undefined,
@@ -323,19 +440,51 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
 
           {/* Item Selector */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 mb-1.5 uppercase tracking-wider">
-              Item a Ser Retirado *
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                Item a Ser Retirado *
+              </label>
+              {itemType === 'product' && (
+                <span className="text-[11px] text-zinc-400">
+                  {filteredProducts.length} produto(s) disponível(is)
+                </span>
+              )}
+            </div>
+
+            {/* Quick search input for products */}
+            {itemType === 'product' && (
+              <div className="relative mb-2">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar item (ex: digite 'tinta', 'toner', 'cabo')..."
+                  value={itemSearch}
+                  onChange={(e) => handleItemSearchChange(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 bg-zinc-950 border border-zinc-800 focus:border-red-500 rounded-xl text-white text-xs placeholder-zinc-500 outline-none"
+                />
+                {itemSearch && (
+                  <button
+                    type="button"
+                    onClick={() => handleItemSearchChange('')}
+                    className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-white text-xs cursor-pointer"
+                    title="Limpar pesquisa"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+
             {itemType === 'product' ? (
               <select
                 value={selectedItemId}
                 onChange={(e) => setSelectedItemId(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 focus:border-red-500 rounded-xl text-white text-sm outline-none cursor-pointer"
               >
-                {products.length === 0 ? (
-                  <option value="">Nenhum produto em estoque</option>
+                {filteredProducts.length === 0 ? (
+                  <option value="">Nenhum produto correspondente encontrado</option>
                 ) : (
-                  products.map((p) => (
+                  filteredProducts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} (Disponível: {p.quantity} {p.unit})
                     </option>
@@ -373,6 +522,127 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Guia Inteligente para Insumo de Impressora (Tinta / Toner) */}
+          {isPrinterSupply && (
+            <div className="bg-gradient-to-b from-red-950/25 to-zinc-950 border-2 border-red-500/50 rounded-2xl p-4 space-y-3 shadow-xl animate-fadeIn">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-red-950 border border-red-700 flex items-center justify-center text-red-400 shadow-sm">
+                    <Printer className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Especificar Impressora de Destino</span>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    </h3>
+                    <p className="text-[11px] text-zinc-300 font-medium">
+                      {isToner 
+                        ? '⬛ Toner detectado: mostrando impressoras Monocromáticas (P&B) cadastradas' 
+                        : isInk 
+                        ? '🎨 Tinta detectada: mostrando impressoras Coloridas cadastradas' 
+                        : 'Vincule este suprimento à impressora cadastrada correspondente'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Segmented control tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-zinc-950 rounded-xl border border-zinc-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPrinterFilterTab('mono')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition cursor-pointer text-center text-[11px] ${
+                    activePrinterTab === 'mono'
+                      ? 'bg-red-900/80 text-white shadow-sm border border-red-600'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  ⬛ Monocromáticas ({monoPrinters.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrinterFilterTab('color')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition cursor-pointer text-center text-[11px] ${
+                    activePrinterTab === 'color'
+                      ? 'bg-red-900/80 text-white shadow-sm border border-red-600'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  🎨 Coloridas ({colorPrinters.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrinterFilterTab('all')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition cursor-pointer text-center text-[11px] ${
+                    activePrinterTab === 'all'
+                      ? 'bg-red-900/80 text-white shadow-sm border border-red-600'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Todas ({printers.length})
+                </button>
+              </div>
+
+              {/* Printer Select */}
+              <div>
+                <select
+                  value={targetPrinterId}
+                  onChange={(e) => handleSelectTargetPrinter(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-700/80 focus:border-red-500 rounded-xl text-white text-xs outline-none cursor-pointer"
+                >
+                  <option value="">-- Selecione a impressora cadastrada que receberá o insumo --</option>
+                  {visiblePrinters.map((pr) => {
+                    const dep = departments.find(d => d.id === pr.departmentId);
+                    return (
+                      <option key={pr.id} value={pr.id}>
+                        {pr.brand} {pr.model} — {pr.colorType} (Local: {dep?.name || 'Central T.I.'}) [{pr.status}]
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {visiblePrinters.length === 0 && (
+                  <p className="text-[11px] text-amber-400/90 mt-1">
+                    Nenhuma impressora deste tipo ({activePrinterTab === 'mono' ? 'Monocromática' : 'Colorida'}) encontrada. Você pode alternar para a aba "Todas" acima.
+                  </p>
+                )}
+              </div>
+
+              {/* Active Selected Printer Info Card */}
+              {selectedPrinterObj && (
+                <div className="bg-zinc-950/95 border border-zinc-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <div className="font-bold text-white flex items-center gap-1.5">
+                      <Printer className="w-3.5 h-3.5 text-red-400" />
+                      <span>{selectedPrinterObj.brand} {selectedPrinterObj.model}</span>
+                      <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded font-semibold">
+                        {selectedPrinterObj.colorType}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-zinc-400 flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3 text-red-400" />
+                      <span>
+                        Local cadastrado da impressora: <strong>{departments.find(d => d.id === selectedPrinterObj.departmentId)?.name || 'Central de T.I.'}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedPrinterObj.departmentId && destinationDepartmentId !== selectedPrinterObj.departmentId && (
+                    <button
+                      type="button"
+                      onClick={() => setDestinationDepartmentId(selectedPrinterObj.departmentId)}
+                      className="px-2.5 py-1.5 bg-red-950/90 hover:bg-red-900 border border-red-700/80 rounded-lg text-[11px] font-bold text-red-200 transition cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                      title="Sincronizar loja de destino da saída com a localização desta impressora"
+                    >
+                      <Check className="w-3 h-3" />
+                      <span>Definir Destino para esta Loja</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Quantity */}
           <div>

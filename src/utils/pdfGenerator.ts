@@ -5,7 +5,9 @@ import { Product, PrinterItem, WithdrawalRecord, Department, Requester } from '.
 export interface PDFReportOptions {
   reportType: 'complete' | 'withdrawals' | 'stock' | 'printers';
   departmentFilter?: string; // department id or 'all'
-  periodFilter?: 'all' | 'today' | '7days' | '30days';
+  periodFilter?: 'all' | 'today' | '7days' | '30days' | 'custom';
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
   technicianName?: string;
 }
 
@@ -13,6 +15,8 @@ export function generateStockReportPDF({
   reportType,
   departmentFilter = 'all',
   periodFilter = 'all',
+  startDate,
+  endDate,
   technicianName = 'Responsável T.I.',
   products,
   printers,
@@ -54,6 +58,13 @@ export function generateStockReportPDF({
   } else if (periodFilter === '30days') {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     filteredWithdrawals = filteredWithdrawals.filter(w => new Date(w.date) >= thirtyDaysAgo);
+  } else if (periodFilter === 'custom') {
+    if (startDate) {
+      filteredWithdrawals = filteredWithdrawals.filter(w => w.date.slice(0, 10) >= startDate);
+    }
+    if (endDate) {
+      filteredWithdrawals = filteredWithdrawals.filter(w => w.date.slice(0, 10) <= endDate);
+    }
   }
 
   // Filter by department if specified
@@ -111,8 +122,18 @@ export function generateStockReportPDF({
     printers: 'Inventário de Impressoras (Cores & Modelos)',
   };
 
-  doc.text(`Escopo: ${reportTypeLabels[reportType]}`, 18, 34.5);
-  doc.text(`Unidade: ${depNameLabel}`, 120, 34.5);
+  let periodLabel = 'Histórico Completo';
+  if (periodFilter === 'today') periodLabel = 'Hoje';
+  else if (periodFilter === '7days') periodLabel = 'Últimos 7 dias';
+  else if (periodFilter === '30days') periodLabel = 'Últimos 30 dias';
+  else if (periodFilter === 'custom') {
+    const sFmt = startDate ? startDate.split('-').reverse().join('/') : '';
+    const eFmt = endDate ? endDate.split('-').reverse().join('/') : '';
+    periodLabel = sFmt && eFmt ? `${sFmt} a ${eFmt}` : sFmt ? `A partir de ${sFmt}` : `Até ${eFmt}`;
+  }
+
+  doc.text(`Escopo: ${reportTypeLabels[reportType]}`, 18, 33.5);
+  doc.text(`Unidade: ${depNameLabel}  |  Período: ${periodLabel}`, 18, 37);
 
   let currentY = 44;
 
@@ -184,9 +205,12 @@ export function generateStockReportPDF({
       const dateObj = new Date(w.date);
       const dateFormatted = `${dateObj.toLocaleDateString('pt-BR')} ${dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
       const requesterFull = w.requesterSection ? `${w.requesterName} (${w.requesterSection})` : w.requesterName;
+      const itemWithPrinter = w.targetPrinterName 
+        ? `${w.itemName}\n(Para: ${w.targetPrinterName})` 
+        : w.itemName;
       return [
         dateFormatted,
-        w.itemName,
+        itemWithPrinter,
         `-${w.quantity}`,
         w.destinationDepartmentName,
         requesterFull,

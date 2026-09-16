@@ -35,6 +35,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [periodFilter, setPeriodFilter] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
+  
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const defaultEnd = now.toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState<string>(defaultStart);
+  const [endDate, setEndDate] = useState<string>(defaultEnd);
 
   const filteredRecords = useMemo(() => {
     return withdrawals.filter((w) => {
@@ -43,14 +50,30 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         w.requesterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         w.technicianName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         w.ticketOrReason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        w.destinationDepartmentName.toLowerCase().includes(searchTerm.toLowerCase());
+        w.destinationDepartmentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (w.targetPrinterName && w.targetPrinterName.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesDep = selectedDepartment === 'all' || w.destinationDepartmentId === selectedDepartment;
       const matchesType = selectedType === 'all' || w.itemType === selectedType;
 
-      return matchesSearch && matchesDep && matchesType;
+      let matchesPeriod = true;
+      if (periodFilter === 'today') {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        matchesPeriod = w.date.startsWith(todayStr);
+      } else if (periodFilter === '7days') {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        matchesPeriod = new Date(w.date) >= sevenDaysAgo;
+      } else if (periodFilter === '30days') {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        matchesPeriod = new Date(w.date) >= thirtyDaysAgo;
+      } else if (periodFilter === 'custom') {
+        if (startDate && w.date.slice(0, 10) < startDate) matchesPeriod = false;
+        if (endDate && w.date.slice(0, 10) > endDate) matchesPeriod = false;
+      }
+
+      return matchesSearch && matchesDep && matchesType && matchesPeriod;
     });
-  }, [withdrawals, searchTerm, selectedDepartment, selectedType]);
+  }, [withdrawals, searchTerm, selectedDepartment, selectedType, periodFilter, startDate, endDate]);
 
   const handleExportCSV = () => {
     if (filteredRecords.length === 0) return;
@@ -59,6 +82,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       'Data / Hora',
       'Tipo',
       'Item',
+      'Impressora Vinculada',
       'Quantidade',
       'Departamento de Destino',
       'Quem Retirou / Solicitante',
@@ -70,6 +94,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       new Date(r.date).toLocaleString('pt-BR'),
       r.itemType === 'printer' ? 'Impressora' : 'Material / Produto',
       `"${r.itemName.replace(/"/g, '""')}"`,
+      `"${(r.targetPrinterName || '-').replace(/"/g, '""')}"`,
       r.quantity,
       `"${r.destinationDepartmentName.replace(/"/g, '""')}"`,
       `"${r.requesterName.replace(/"/g, '""')}"`,
@@ -107,7 +132,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     <div className="space-y-4">
       {/* Filters & Export Bar */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search */}
           <div className="relative">
             <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
@@ -127,7 +152,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               onChange={(e) => setSelectedDepartment(e.target.value)}
               className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 focus:border-red-500 rounded-xl text-xs sm:text-sm text-zinc-300 outline-none cursor-pointer"
             >
-              <option value="all">Destino: Todas as Unidades / Lojas</option>
+              <option value="all">Destino: Todas as Lojas</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
                   Destino: {d.name}
@@ -146,6 +171,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               <option value="all">Tipo: Todos os Itens</option>
               <option value="product">Apenas Produtos / Materiais</option>
               <option value="printer">Apenas Impressoras</option>
+            </select>
+          </div>
+
+          {/* Period Filter with Calendar */}
+          <div>
+            <select
+              value={periodFilter}
+              onChange={(e) => setPeriodFilter(e.target.value as any)}
+              className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 focus:border-red-500 rounded-xl text-xs sm:text-sm text-zinc-300 outline-none cursor-pointer"
+            >
+              <option value="all">Período: Todo o Histórico</option>
+              <option value="today">Período: Somente Hoje</option>
+              <option value="7days">Período: Últimos 7 dias</option>
+              <option value="30days">Período: Últimos 30 dias</option>
+              <option value="custom">📅 Período Específico...</option>
             </select>
           </div>
 
@@ -173,6 +213,37 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Custom Calendar Date Pickers */}
+        {periodFilter === 'custom' && (
+          <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold text-zinc-400 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-red-400" />
+              <span>Filtrar por data:</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">De:</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white outline-none cursor-pointer"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Até:</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white outline-none cursor-pointer"
+              />
+            </div>
+            <span className="text-xs text-red-400 font-medium ml-auto">
+              {filteredRecords.length} resultado(s) no período
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -233,6 +304,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         )}
                         <span className="text-zinc-100 font-semibold">{record.itemName}</span>
                       </div>
+                      {record.targetPrinterName && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-800/90 text-red-300 border border-red-900/60 shadow-xs">
+                            <Printer className="w-2.5 h-2.5 text-red-400" />
+                            <span>Para: {record.targetPrinterName}</span>
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4 font-bold text-red-400 whitespace-nowrap">

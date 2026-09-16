@@ -75,6 +75,8 @@ export interface WithdrawalRecord {
   technicianName: string; // responsável de TI que liberou
   ticketOrReason: string; // chamado ou justificativa
   date: string; // ISO string
+  targetPrinterId?: string; // ID da impressora destinatária quando for insumo (tinta/toner)
+  targetPrinterName?: string; // Nome/modelo da impressora destinatária
 }
 
 export interface UserSession {

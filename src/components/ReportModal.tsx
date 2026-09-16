@@ -38,7 +38,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 }) => {
   const [reportType, setReportType] = useState<PDFReportOptions['reportType']>('complete');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [periodFilter, setPeriodFilter] = useState<'all' | 'today' | '7days' | '30days'>('all');
+  const [periodFilter, setPeriodFilter] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
+  
+  // Custom date range (default to current month)
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const defaultEnd = now.toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState<string>(defaultStart);
+  const [endDate, setEndDate] = useState<string>(defaultEnd);
+
   const [technicianName, setTechnicianName] = useState<string>(currentTechnicianName);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -56,6 +64,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   } else if (periodFilter === '30days') {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     previewWithdrawals = previewWithdrawals.filter(w => new Date(w.date) >= thirtyDaysAgo);
+  } else if (periodFilter === 'custom') {
+    if (startDate) {
+      previewWithdrawals = previewWithdrawals.filter(w => w.date.slice(0, 10) >= startDate);
+    }
+    if (endDate) {
+      previewWithdrawals = previewWithdrawals.filter(w => w.date.slice(0, 10) <= endDate);
+    }
   }
 
   if (departmentFilter !== 'all') {
@@ -79,6 +94,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         reportType,
         departmentFilter,
         periodFilter,
+        startDate: periodFilter === 'custom' ? startDate : undefined,
+        endDate: periodFilter === 'custom' ? endDate : undefined,
         technicianName: technicianName.trim() || 'Responsável T.I.',
         products,
         printers,
@@ -242,9 +259,52 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 <option value="today">Somente Hoje</option>
                 <option value="7days">Últimos 7 dias</option>
                 <option value="30days">Últimos 30 dias</option>
+                <option value="custom">📅 Período Específico (Calendário)</option>
               </select>
             </div>
           </div>
+
+          {/* Calendário: Filtro de Data Inicial e Final quando selecionado 'custom' */}
+          {periodFilter === 'custom' && (
+            <div className="bg-red-950/20 border border-red-900/50 rounded-xl p-3.5 space-y-2 animate-fadeIn">
+              <div className="flex items-center gap-2 text-xs font-semibold text-red-300">
+                <Calendar className="w-4 h-4 text-red-400" />
+                <span>Definir Intervalo de Datas do Relatório:</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-400 mb-1">
+                    Data Inicial (De):
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700/80 focus:border-red-500 rounded-lg text-white text-xs outline-none cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-400 mb-1">
+                    Data Final (Até):
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700/80 focus:border-red-500 rounded-lg text-white text-xs outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-1">
+                <span>
+                  Mostrando retiradas de <strong>{startDate.split('-').reverse().join('/')}</strong> até <strong>{endDate.split('-').reverse().join('/')}</strong>
+                </span>
+                <span className="text-red-400 font-medium">
+                  {previewWithdrawals.length} registros no intervalo
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Técnico Emitente */}
           <div>

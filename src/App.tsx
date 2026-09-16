@@ -10,11 +10,13 @@ import {
   saveStoredWithdrawals,
   getStoredRequesters,
   saveStoredRequesters,
+  getStoredPurchases,
+  saveStoredPurchases,
   getStoredSession,
   saveStoredSession,
   clearAllStockData
 } from './utils/storage';
-import { Department, Product, PrinterItem, WithdrawalRecord, UserSession, Requester } from './types';
+import { Department, Product, PrinterItem, WithdrawalRecord, UserSession, Requester, MonthlyPurchase } from './types';
 import { LoginScreen } from './components/LoginScreen';
 import { Header, ActiveTab } from './components/Header';
 import { OverviewView } from './components/OverviewView';
@@ -28,6 +30,8 @@ import { DepartmentsModal } from './components/DepartmentsModal';
 import { HistoryView } from './components/HistoryView';
 import { RequestersView } from './components/RequestersView';
 import { RequesterModal } from './components/RequesterModal';
+import { MonthlyPurchasesView } from './components/MonthlyPurchasesView';
+import { PurchaseModal } from './components/PurchaseModal';
 import { ReportModal } from './components/ReportModal';
 import { CheckCircle2, RotateCcw, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import {
@@ -38,6 +42,7 @@ import {
   subscribeToPrinters,
   subscribeToRequesters,
   subscribeToWithdrawals,
+  subscribeToPurchases,
   cloudSaveProduct,
   cloudDeleteProduct,
   cloudSavePrinter,
@@ -46,6 +51,8 @@ import {
   cloudDeleteRequester,
   cloudSaveDepartment,
   cloudDeleteDepartment,
+  cloudSavePurchase,
+  cloudDeletePurchase,
   cloudRecordWithdrawal,
   cloudClearAllData
 } from './services/firebaseService';
@@ -60,6 +67,7 @@ export default function App() {
   const [printers, setPrinters] = useState<PrinterItem[]>(() => getStoredPrinters());
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>(() => getStoredWithdrawals());
   const [requesters, setRequesters] = useState<Requester[]>(() => getStoredRequesters());
+  const [purchases, setPurchases] = useState<MonthlyPurchase[]>(() => getStoredPurchases());
 
   // Realtime Cloud Status
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(true);
@@ -84,6 +92,9 @@ export default function App() {
   const [isRequesterModalOpen, setIsRequesterModalOpen] = useState(false);
   const [editingRequester, setEditingRequester] = useState<Requester | null>(null);
 
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState<MonthlyPurchase | null>(null);
+
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Filter state shortcuts
@@ -105,6 +116,7 @@ export default function App() {
     let unsubscribePrinters: (() => void) | undefined;
     let unsubscribeRequesters: (() => void) | undefined;
     let unsubscribeWithdrawals: (() => void) | undefined;
+    let unsubscribePurchases: (() => void) | undefined;
 
     async function initFirebaseSync() {
       setIsSyncing(true);
@@ -139,6 +151,11 @@ export default function App() {
           setWithdrawals(cloudWiths);
           saveStoredWithdrawals(cloudWiths);
         });
+
+        unsubscribePurchases = subscribeToPurchases((cloudPurchases) => {
+          setPurchases(cloudPurchases);
+          saveStoredPurchases(cloudPurchases);
+        });
       } catch (err) {
         console.error('Firebase realtime sync initialization failed:', err);
         setIsCloudConnected(false);
@@ -155,6 +172,7 @@ export default function App() {
       unsubscribePrinters?.();
       unsubscribeRequesters?.();
       unsubscribeWithdrawals?.();
+      unsubscribePurchases?.();
     };
   }, []);
 
@@ -178,6 +196,10 @@ export default function App() {
   useEffect(() => {
     saveStoredRequesters(requesters);
   }, [requesters]);
+
+  useEffect(() => {
+    saveStoredPurchases(purchases);
+  }, [purchases]);
 
   // Handle Login / Logout
   const handleLogin = (userSession: UserSession) => {
@@ -442,14 +464,85 @@ export default function App() {
     }
   };
 
+  // --- Monthly Purchases CRUD ---
+  const handleSavePurchase = async (
+    purchaseData: Omit<MonthlyPurchase, 'id' | 'createdAt' | 'updatedAt'>,
+    editId?: string
+  ) => {
+    const now = new Date().toISOString();
+    let savedPurchase: MonthlyPurchase;
+
+    if (editId) {
+      const existing = purchases.find(p => p.id === editId);
+      savedPurchase = {
+        ...(existing || {}),
+        ...purchaseData,
+        id: editId,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+      };
+      setPurchases(prev => prev.map(p => p.id === editId ? savedPurchase : p));
+      showToast(`Compra "${savedPurchase.itemName}" atualizada com sucesso!`);
+    } else {
+      savedPurchase = {
+        ...purchaseData,
+        id: `pur-${Date.now()}`,
+        createdAt: now,
+        updatedAt: now,
+      };
+      setPurchases(prev => [savedPurchase, ...prev]);
+      showToast(`Nova compra "${savedPurchase.itemName}" registrada com sucesso!`);
+    }
+
+    try {
+      await cloudSavePurchase(savedPurchase);
+    } catch (e) {
+      console.warn('Cloud save purchase error:', e);
+    }
+  };
+
+  const handleDeletePurchase = async (purchaseId: string) => {
+    const p = purchases.find(item => item.id === purchaseId);
+    if (!p) return;
+    if (window.confirm(`Deseja excluir o registro da compra "${p.itemName}"?`)) {
+      setPurchases(prev => prev.filter(item => item.id !== purchaseId));
+      try {
+        await cloudDeletePurchase(purchaseId);
+      } catch (e) {
+        console.warn('Cloud delete purchase error:', e);
+      }
+      showToast(`Compra "${p.itemName}" removida.`);
+    }
+  };
+
+  const handleMarkAsDelivered = async (purchase: MonthlyPurchase) => {
+    const today = new Date().toISOString().split('T')[0];
+    const updated: MonthlyPurchase = {
+      ...purchase,
+      status: 'Entregue',
+      arrivalDate: today,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setPurchases(prev => prev.map(p => p.id === purchase.id ? updated : p));
+    showToast(`Pedido "${purchase.itemName}" marcado como entregue hoje!`);
+
+    try {
+      await cloudSavePurchase(updated);
+    } catch (e) {
+      console.warn('Cloud save delivery error:', e);
+    }
+  };
+
   // Reset / Clear all stock data
   const handleClearAllStock = async () => {
-    if (window.confirm('Tem certeza que deseja zerar o sistema? Todos os produtos cadastrados, impressoras, solicitantes e histórico de retiradas serão limpos na nuvem e localmente.')) {
+    if (window.confirm('Tem certeza que deseja zerar o sistema? Todos os produtos cadastrados, impressoras, solicitantes, compras e histórico de retiradas serão limpos na nuvem e localmente.')) {
       clearAllStockData();
       setProducts([]);
       setPrinters([]);
       setWithdrawals([]);
       setRequesters([]);
+      setPurchases([]);
       setDepartments(getStoredDepartments());
       try {
         await cloudClearAllData();
@@ -496,6 +589,7 @@ export default function App() {
         onLogout={handleLogout}
         productsCount={products.length}
         lowStockCount={lowStockCount}
+        purchasesCount={purchases.length}
         isCloudConnected={isCloudConnected}
         isSyncing={isSyncing}
       />
@@ -611,6 +705,25 @@ export default function App() {
             onQuickWithdrawalForRequester={handleQuickWithdrawalForRequester}
           />
         )}
+
+        {/* Tab 6: Compras do Mês (NOVA ABA SOLICITADA PELO USUÁRIO) */}
+        {activeTab === 'purchases' && (
+          <MonthlyPurchasesView
+            purchases={purchases}
+            departments={departments}
+            onOpenNewPurchaseModal={() => {
+              setEditingPurchase(null);
+              setIsPurchaseModalOpen(true);
+            }}
+            onEditPurchase={(p) => {
+              setEditingPurchase(p);
+              setIsPurchaseModalOpen(true);
+            }}
+            onDeletePurchase={handleDeletePurchase}
+            onMarkAsDelivered={handleMarkAsDelivered}
+            currentTechnicianName={session.name}
+          />
+        )}
       </main>
 
       {/* Footer */}
@@ -700,6 +813,16 @@ export default function App() {
         onSave={handleSaveRequester}
         departments={departments}
         editingRequester={editingRequester}
+      />
+
+      {/* Compras do Mês Modal */}
+      <PurchaseModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
+        onSave={handleSavePurchase}
+        departments={departments}
+        editingPurchase={editingPurchase}
+        currentTechnicianName={session.name}
       />
 
       {/* Relatório Operacional PDF Modal */}

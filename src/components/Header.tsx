@@ -13,11 +13,12 @@ import {
   FileText,
   Cloud,
   CloudOff,
-  RefreshCw
+  RefreshCw,
+  ShoppingBag
 } from 'lucide-react';
 import { UserSession } from '../types';
 
-export type ActiveTab = 'overview' | 'products' | 'printers' | 'withdrawals' | 'departments' | 'requesters';
+export type ActiveTab = 'overview' | 'products' | 'printers' | 'withdrawals' | 'departments' | 'requesters' | 'purchases';
 
 interface HeaderProps {
   user: UserSession;
@@ -31,6 +32,7 @@ interface HeaderProps {
   onLogout: () => void;
   productsCount?: number;
   lowStockCount?: number;
+  purchasesCount?: number;
   isCloudConnected?: boolean;
   isSyncing?: boolean;
 }
@@ -219,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Departamentos & Lojas</span>
           </button>
 
-          {/* 6. Solicitantes & Setores (NEW REQUESTED TAB) */}
+          {/* 6. Solicitantes & Setores */}
           <button
             onClick={() => onTabChange('requesters')}
             className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
@@ -230,6 +232,19 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Users className="w-4 h-4" />
             <span>Solicitantes & Setores</span>
+          </button>
+
+          {/* 7. Compras do Mês (NEW REQUESTED TAB) */}
+          <button
+            onClick={() => onTabChange('purchases')}
+            className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap cursor-pointer ${
+              activeTab === 'purchases'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>Compras do Mês</span>
           </button>
         </div>
       </div>

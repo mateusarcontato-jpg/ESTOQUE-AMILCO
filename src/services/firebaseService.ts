@@ -10,7 +10,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Department, Product, PrinterItem, WithdrawalRecord, Requester } from '../types';
+import { Department, Product, PrinterItem, WithdrawalRecord, Requester, MonthlyPurchase } from '../types';
 import { INITIAL_DEPARTMENTS, INITIAL_PRODUCTS, INITIAL_PRINTERS } from '../data/initialData';
 
 // Initialize Firebase App
@@ -39,6 +39,7 @@ export const COLLECTIONS = {
   printers: 'printers',
   requesters: 'requesters',
   withdrawals: 'withdrawals',
+  purchases: 'purchases',
 } as const;
 
 // Seed initial data to cloud if collections are empty
@@ -129,6 +130,16 @@ export function subscribeToWithdrawals(callback: (withdrawals: WithdrawalRecord[
   });
 }
 
+export function subscribeToPurchases(callback: (purchases: MonthlyPurchase[]) => void) {
+  return onSnapshot(collection(db, COLLECTIONS.purchases), (snapshot) => {
+    const data = snapshot.docs.map(doc => doc.data() as MonthlyPurchase);
+    data.sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate));
+    callback(data);
+  }, (err) => {
+    console.error('Error subscribing to purchases:', err);
+  });
+}
+
 // --- Cloud Write Helpers ---
 
 export async function cloudSaveProduct(product: Product) {
@@ -153,6 +164,14 @@ export async function cloudSaveRequester(requester: Requester) {
 
 export async function cloudDeleteRequester(requesterId: string) {
   await deleteDoc(doc(db, COLLECTIONS.requesters, requesterId));
+}
+
+export async function cloudSavePurchase(purchase: MonthlyPurchase) {
+  await setDoc(doc(db, COLLECTIONS.purchases, purchase.id), purchase);
+}
+
+export async function cloudDeletePurchase(purchaseId: string) {
+  await deleteDoc(doc(db, COLLECTIONS.purchases, purchaseId));
 }
 
 export async function cloudSaveDepartment(department: Department) {
@@ -185,6 +204,7 @@ export async function cloudClearAllData() {
     COLLECTIONS.printers,
     COLLECTIONS.requesters,
     COLLECTIONS.withdrawals,
+    COLLECTIONS.purchases,
   ];
 
   for (const collName of collectionsToClear) {

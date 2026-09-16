@@ -31,6 +31,11 @@ service cloud.firestore {
       allow write: if isValidId(withdrawalId);
     }
 
+    match /purchases/{purchaseId} {
+      allow read: if true;
+      allow write: if isValidId(purchaseId);
+    }
+
     // Health / connection test doc
     match /test/{docId} {
       allow read, write: if true;

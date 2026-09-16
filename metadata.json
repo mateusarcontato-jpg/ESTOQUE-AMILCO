@@ -1,6 +1,6 @@
 {
   "name": "Sistema de Gestão de Estoque TI",
-  "description": "Sistema corporativo de controle de estoque de TI, movimentações de saída, gestão especializada de impressoras por modelo e cor, e alocação por departamentos.",
+  "description": "Sistema corporativo de controle de estoque de TI, movimentações de saída, compras do mês com fornecedores, links e relatórios PDF, gestão de impressoras e departamentos.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

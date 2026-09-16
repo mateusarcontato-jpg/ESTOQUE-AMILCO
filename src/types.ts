@@ -83,3 +83,25 @@ export interface UserSession {
   role: string;
   authenticated: boolean;
 }
+
+export type PurchaseStatus = 'Pendente / A caminho' | 'Entregue' | 'Cancelado';
+
+export interface MonthlyPurchase {
+  id: string;
+  itemName: string;
+  storeOrVendor: string; // Onde foi comprado (preenchido manualmente)
+  purchaseUrl?: string; // URL do site onde foi comprado
+  quantity: number;
+  unitPrice: number; // Valor unitário em R$
+  totalPrice: number; // Calculado: quantidade * unitPrice
+  purchaseDate: string; // Data da compra (YYYY-MM-DD)
+  arrivalDate?: string; // Quando chegou (YYYY-MM-DD)
+  status: PurchaseStatus;
+  destinationDepartmentId?: string; // Loja/unidade de destino opcional
+  destinationDepartmentName?: string;
+  trackingCode?: string; // Rastreamento dos correios/transportadora
+  notes?: string;
+  buyerName?: string;
+  createdAt: string;
+  updatedAt: string;
+}

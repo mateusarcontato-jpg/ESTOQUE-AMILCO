@@ -1,4 +1,4 @@
-import { Department, Product, PrinterItem, WithdrawalRecord, UserSession, Requester } from '../types';
+import { Department, Product, PrinterItem, WithdrawalRecord, UserSession, Requester, MonthlyPurchase } from '../types';
 import { INITIAL_DEPARTMENTS, INITIAL_PRODUCTS, INITIAL_PRINTERS, INITIAL_WITHDRAWALS } from '../data/initialData';
 
 const STORAGE_KEYS = {
@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   PRINTERS: 'ti_stock_printers_v2',
   WITHDRAWALS: 'ti_stock_withdrawals_v2',
   REQUESTERS: 'ti_stock_requesters_v2',
+  PURCHASES: 'ti_stock_purchases_v2',
   SESSION: 'ti_stock_session_v2',
   CLEAN_INITIALIZED: 'ti_stock_zeroed_flag_v2',
 };
@@ -146,6 +147,28 @@ export const saveStoredRequesters = (requesters: Requester[]): void => {
   }
 };
 
+export const getStoredPurchases = (): MonthlyPurchase[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PURCHASES);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify([]));
+      return [];
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error reading monthly purchases:', err);
+    return [];
+  }
+};
+
+export const saveStoredPurchases = (purchases: MonthlyPurchase[]): void => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases));
+  } catch (err) {
+    console.error('Error saving monthly purchases:', err);
+  }
+};
+
 export const getStoredSession = (): UserSession | null => {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEYS.SESSION);
@@ -173,6 +196,7 @@ export const clearAllStockData = (): void => {
   localStorage.setItem(STORAGE_KEYS.PRINTERS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.REQUESTERS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_DEPARTMENTS));
   localStorage.setItem(STORAGE_KEYS.CLEAN_INITIALIZED, 'true');
 };

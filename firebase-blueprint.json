@@ -86,6 +86,31 @@
         "date": { "type": "string" }
       },
       "required": ["id", "itemId", "itemName", "itemType", "quantity", "destinationDepartmentId", "destinationDepartmentName", "requesterName", "date"]
+    },
+    "MonthlyPurchase": {
+      "title": "MonthlyPurchase",
+      "description": "Monthly procurement item log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemName": { "type": "string" },
+        "storeOrVendor": { "type": "string" },
+        "purchaseUrl": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "purchaseDate": { "type": "string" },
+        "arrivalDate": { "type": "string" },
+        "status": { "type": "string" },
+        "destinationDepartmentId": { "type": "string" },
+        "destinationDepartmentName": { "type": "string" },
+        "trackingCode": { "type": "string" },
+        "notes": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "itemName", "storeOrVendor", "quantity", "unitPrice", "totalPrice", "purchaseDate", "status"]
     }
   },
   "firestore": {
@@ -108,6 +133,10 @@
     "/withdrawals/{withdrawalId}": {
       "schema": "WithdrawalRecord",
       "description": "Audit trail of all item withdrawals"
+    },
+    "/purchases/{purchaseId}": {
+      "schema": "MonthlyPurchase",
+      "description": "Monthly IT procurement records"
     }
   }
 }

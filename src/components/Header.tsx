@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { 
   LayoutGrid,
   Package, 
@@ -14,9 +14,7 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
-  ShoppingBag,
-  ChevronLeft,
-  ChevronRight
+  ShoppingBag
 } from 'lucide-react';
 import { UserSession } from '../types';
 
@@ -30,6 +28,8 @@ interface HeaderProps {
   onOpenPrinterModal: () => void;
   onOpenWithdrawalModal: () => void;
   onOpenDepartmentModal: () => void;
+  onOpenRequesterModal: () => void;
+  onOpenPurchaseModal: () => void;
   onOpenReportModal: () => void;
   onLogout: () => void;
   onManualSync?: () => void;
@@ -45,91 +45,20 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onTabChange,
   onOpenProductModal,
+  onOpenPrinterModal,
   onOpenWithdrawalModal,
+  onOpenDepartmentModal,
+  onOpenRequesterModal,
+  onOpenPurchaseModal,
   onOpenReportModal,
   onLogout,
   onManualSync,
   productsCount = 0,
   lowStockCount = 0,
+  purchasesCount = 0,
   isCloudConnected = true,
   isSyncing = false,
 }) => {
-  const tabsContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const hoverScrollTimerRef = useRef<number | null>(null);
-
-  const checkScroll = useCallback(() => {
-    const el = tabsContainerRef.current;
-    if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    setCanScrollLeft(scrollLeft > 6);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
-  }, []);
-
-  // Update scroll indicator on mount, resize and scroll
-  useEffect(() => {
-    checkScroll();
-    const el = tabsContainerRef.current;
-    if (!el) return;
-
-    const handleResize = () => checkScroll();
-    window.addEventListener('resize', handleResize);
-    el.addEventListener('scroll', checkScroll, { passive: true });
-
-    // Enable horizontal scrolling with mouse wheel
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY !== 0) {
-        e.preventDefault();
-        el.scrollLeft += e.deltaY;
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-
-    // Initial check after render
-    const t = setTimeout(checkScroll, 100);
-
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('resize', handleResize);
-      el.removeEventListener('scroll', checkScroll);
-      el.removeEventListener('wheel', onWheel);
-      if (hoverScrollTimerRef.current) cancelAnimationFrame(hoverScrollTimerRef.current);
-    };
-  }, [checkScroll]);
-
-  // Keep active tab visible when changed
-  useEffect(() => {
-    const container = tabsContainerRef.current;
-    if (!container) return;
-    const activeBtn = container.querySelector<HTMLElement>('[data-active="true"]');
-    if (activeBtn) {
-      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-    }
-  }, [activeTab]);
-
-  const scrollByAmount = (amount: number) => {
-    if (tabsContainerRef.current) {
-      tabsContainerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
-    }
-  };
-
-  // Hover auto-scroll near the right or left edge of the tabs bar
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = tabsContainerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const edgeZone = 80; // 80px zone on each side
-
-    if (x > rect.width - edgeZone && canScrollRight) {
-      const speed = Math.max(4, Math.min(14, ((x - (rect.width - edgeZone)) / edgeZone) * 14));
-      el.scrollLeft += speed;
-    } else if (x < edgeZone && canScrollLeft) {
-      const speed = Math.max(4, Math.min(14, ((edgeZone - x) / edgeZone) * 14));
-      el.scrollLeft -= speed;
-    }
-  };
   return (
     <header className="bg-zinc-950 border-b border-zinc-800/80 sticky top-0 z-30 shadow-md">
       {/* Top Bar */}
@@ -232,167 +161,110 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Navigation Tabs Bar with dynamic scroll & hover navigation */}
-        <div className="relative border-t border-zinc-800/80 pt-2 pb-1 group/tabs">
-          {/* Left scroll chevron button */}
-          {canScrollLeft && (
-            <button
-              type="button"
-              onClick={() => scrollByAmount(-200)}
-              onMouseEnter={() => {
-                const step = () => {
-                  if (tabsContainerRef.current) {
-                    tabsContainerRef.current.scrollLeft -= 8;
-                    hoverScrollTimerRef.current = requestAnimationFrame(step);
-                  }
-                };
-                hoverScrollTimerRef.current = requestAnimationFrame(step);
-              }}
-              onMouseLeave={() => {
-                if (hoverScrollTimerRef.current) cancelAnimationFrame(hoverScrollTimerRef.current);
-              }}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-zinc-900/95 hover:bg-red-950 text-zinc-300 hover:text-white border border-zinc-700 shadow-xl backdrop-blur-sm transition cursor-pointer"
-              title="Rolar abas para a esquerda"
-              aria-label="Rolar para a esquerda"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Right scroll chevron button */}
-          {canScrollRight && (
-            <button
-              type="button"
-              onClick={() => scrollByAmount(200)}
-              onMouseEnter={() => {
-                const step = () => {
-                  if (tabsContainerRef.current) {
-                    tabsContainerRef.current.scrollLeft += 8;
-                    hoverScrollTimerRef.current = requestAnimationFrame(step);
-                  }
-                };
-                hoverScrollTimerRef.current = requestAnimationFrame(step);
-              }}
-              onMouseLeave={() => {
-                if (hoverScrollTimerRef.current) cancelAnimationFrame(hoverScrollTimerRef.current);
-              }}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-red-950/90 hover:bg-red-900 text-red-200 hover:text-white border border-red-700/80 shadow-xl backdrop-blur-sm transition cursor-pointer"
-              title="Rolar abas para a direita (Ver Compras do Mês)"
-              aria-label="Rolar para a direita"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Tabs Container with sleek custom scrollbar & hover scroll */}
-          <div
-            ref={tabsContainerRef}
-            onMouseMove={handleMouseMove}
-            className="flex items-center gap-1.5 overflow-x-auto pb-2.5 pt-0.5 text-xs tabs-scrollbar scroll-smooth select-none px-1"
+        {/* Navigation Tabs Bar - Compact Single Line (No scrollbar, fits all items seamlessly) */}
+        <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-1.5 border-t border-zinc-800/80 pt-2 pb-1 overflow-x-auto sm:overflow-x-visible scrollbar-none w-full text-xs">
+          {/* 1. Visão Geral */}
+          <button
+            onClick={() => onTabChange('overview')}
+            title="Visão Geral do Sistema"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
           >
-            {/* 1. Visão Geral */}
-            <button
-              data-active={activeTab === 'overview'}
-              onClick={() => onTabChange('overview')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'overview'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span>Visão Geral</span>
-            </button>
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Visão Geral</span>
+          </button>
 
-            {/* 2. Produtos & Estoque */}
-            <button
-              data-active={activeTab === 'products'}
-              onClick={() => onTabChange('products')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'products'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              <span>Produtos & Estoque</span>
-              {lowStockCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-red-600 text-white">
-                  {lowStockCount}
-                </span>
-              )}
-            </button>
+          {/* 2. Estoque */}
+          <button
+            onClick={() => onTabChange('products')}
+            title="Produtos & Estoque"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'products'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>Estoque</span>
+            {lowStockCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-red-600 text-white">
+                {lowStockCount}
+              </span>
+            )}
+          </button>
 
-            {/* 3. Impressoras (Cores & Modelos) */}
-            <button
-              data-active={activeTab === 'printers'}
-              onClick={() => onTabChange('printers')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'printers'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <Printer className="w-4 h-4" />
-              <span>Impressoras (Cores & Modelos)</span>
-            </button>
+          {/* 3. Impressoras */}
+          <button
+            onClick={() => onTabChange('printers')}
+            title="Impressoras (Cores & Modelos)"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'printers'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Impressoras</span>
+          </button>
 
-            {/* 4. Retiradas & Destinos */}
-            <button
-              data-active={activeTab === 'withdrawals'}
-              onClick={() => onTabChange('withdrawals')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'withdrawals'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <ArrowUpRight className="w-4 h-4" />
-              <span>Retiradas & Destinos</span>
-            </button>
+          {/* 4. Retiradas */}
+          <button
+            onClick={() => onTabChange('withdrawals')}
+            title="Retiradas & Destinos"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'withdrawals'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span>Retiradas</span>
+          </button>
 
-            {/* 5. Departamentos & Lojas */}
-            <button
-              data-active={activeTab === 'departments'}
-              onClick={() => onTabChange('departments')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'departments'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span>Departamentos & Lojas</span>
-            </button>
+          {/* 5. Departamentos */}
+          <button
+            onClick={() => onTabChange('departments')}
+            title="Departamentos & Lojas"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'departments'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Departamentos</span>
+          </button>
 
-            {/* 6. Solicitantes & Setores */}
-            <button
-              data-active={activeTab === 'requesters'}
-              onClick={() => onTabChange('requesters')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'requesters'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>Solicitantes & Setores</span>
-            </button>
+          {/* 6. Solicitantes */}
+          <button
+            onClick={() => onTabChange('requesters')}
+            title="Solicitantes & Setores"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'requesters'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Solicitantes</span>
+          </button>
 
-            {/* 7. Compras do Mês */}
-            <button
-              data-active={activeTab === 'purchases'}
-              onClick={() => onTabChange('purchases')}
-              className={`flex items-center gap-2 py-2 px-3.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                activeTab === 'purchases'
-                  ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Compras do Mês</span>
-            </button>
-          </div>
+          {/* 7. Compras do Mês */}
+          <button
+            onClick={() => onTabChange('purchases')}
+            title="Compras do Mês & Pedidos com Fornecedores"
+            className={`flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+              activeTab === 'purchases'
+                ? 'bg-red-950/90 text-red-300 border border-red-800/80 shadow-xs'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Compras do Mês</span>
+          </button>
         </div>
       </div>
     </header>

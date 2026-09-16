@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <!-- Clip path to keep diagonal lines inside the squircle -->
+    <clipPath id="squircle-clip">
+      <rect width="128" height="128" rx="28" ry="28" />
+    </clipPath>
+  </defs>
+
+  <!-- Red Squircle Base -->
+  <rect width="128" height="128" rx="28" ry="28" fill="#e50914" />
+
+  <!-- Diagonal White Geometric Accent Lines (clipped to squircle) -->
+  <g clip-path="url(#squircle-clip)">
+    <!-- Top-left diagonal stroke -->
+    <line x1="52" y1="-8" x2="-8" y2="56" stroke="#ffffff" stroke-width="8.5" stroke-linecap="square" />
+    <!-- Down-right diagonal stroke -->
+    <line x1="50" y1="-8" x2="136" y2="122" stroke="#ffffff" stroke-width="8.5" stroke-linecap="square" />
+  </g>
+
+  <!-- Stylized Amilco "A" Emblem with heavy white outline and dark fill -->
+  <g transform="translate(62, 70)">
+    <!-- Outer White Contour / Glow -->
+    <path d="M -8 -46 L 24 -46 L 44 34 L 20 34 L 14 10 L -18 10 L -24 34 L -46 34 Z M -14 -4 L 10 -4 L 1 -30 Z"
+          fill="#ffffff"
+          stroke="#ffffff"
+          stroke-width="12"
+          stroke-linejoin="round"
+          stroke-linecap="round" />
+    
+    <!-- Dark Charcoal Inner Letter -->
+    <path d="M -8 -46 L 24 -46 L 44 34 L 20 34 L 14 10 L -18 10 L -24 34 L -46 34 Z M -14 -4 L 10 -4 L 1 -30 Z"
+          fill="#1c1c1f" />
+    
+    <!-- Red Inner Triangular Counter Hole -->
+    <polygon points="-12,-2 8,-2 0,-26" fill="#e50914" />
+  </g>
+</svg>
